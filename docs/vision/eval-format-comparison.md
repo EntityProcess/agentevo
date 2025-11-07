@@ -23,9 +23,20 @@ This note summarizes how three reference projects structure agent evaluation wor
 - **Strengths**: Declarative DAG enables mixed tooling; aggregation flag cleanly separates per-item vs summary; CLI/SDK integrate tightly.
 - **Gaps**: Metric semantics live in Python; string macros are brittle; limited explicit schema for evaluation outcomes.
 
+## bbeval
+- **Artifacts**: YAML test specifications (`.test.yaml`) with `description`, `grader`, `target`, and `testcases` (each with `id`, `outcome`, `messages`). Messages support multi-turn conversations with role-based structure (system, user, assistant) and mixed content types (text, file references, instruction files).
+- **Configuration**: Target system decouples tests from providers via `.bbeval/targets.yaml` (provider, settings with environment variable names). Supports Azure, Anthropic, VS Code Copilot, VS Code Insiders, and mock providers. Instruction files can be referenced in messages to inject domain-specific guidelines.
+- **Metrics**: DSPy-based signatures (QuerySignature, CodeGeneration, CodeReview) for domain-specific evaluation. Scoring via aspect extraction from expected outcomes (normalized token overlap) with `hits`, `misses`, `expected_aspect_count`. LLM judge grading option available. Results in JSONL with `test_id`, `score`, `model_answer`, `timestamp`, `raw_request`, `grader_raw_request`.
+- **Strengths**: Strong provider abstraction via targets; multi-turn conversation support with instruction file injection; VS Code integration for agent-in-the-loop evaluation; timeout handling with automatic retries; session-based file management prevents race conditions; supports both LLM and agent-based evaluation (vs. code CLI).
+- **Gaps**: Python-based implementation limits cross-language adoption; scoring limited to aspect matching and LLM judge (no semantic embeddings yet); schema lives in Python models; complex examples in WTG.AI.Prompts demonstrate multi-file instruction patterns and VS Code workspace evaluation but are not publicly available.
+
 ## Implications for AgentEvo YAML
-- Share Agent Lightning’s structured telemetry (spans, reward schema) while exposing a declarative panel file.
-- Borrow AX’s type-safety by backing YAML with generated TypeScript interfaces/validators.
-- Adopt Promptflow’s separation of per-task execution vs aggregation, but define evaluators declaratively so logic is discoverable without Python code.
+- Share Agent Lightning's structured telemetry (spans, reward schema) while exposing a declarative panel file.
+- Borrow AX's type-safety by backing YAML with generated TypeScript interfaces/validators.
+- Adopt Promptflow's separation of per-task execution vs aggregation, but define evaluators declaratively so logic is discoverable without Python code.
+- Leverage bbeval's target abstraction pattern to decouple test specifications from execution providers, enabling flexible multi-provider evaluation.
+- Support multi-turn conversation patterns with instruction file references (bbeval) to inject domain-specific guidelines without polluting test cases.
+- Incorporate session-based artifact management (bbeval) to prevent race conditions in concurrent evaluation scenarios.
+- Consider both aspect-based scoring (bbeval) and LLM judge patterns for flexible evaluation strategies.
 
 These insights motivate the proposed YAML structure: datasets + tasks + reusable evaluators + scoring + reporting, all validated via a TypeScript schema and able to emit structured telemetry for downstream tooling.
