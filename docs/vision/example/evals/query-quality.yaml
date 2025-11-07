@@ -1,0 +1,94 @@
+version: 1
+metadata:
+  name: query-quality
+  description: Example panel focused on SQL generation and verification
+  tags:
+    - database
+    - sql
+imports:
+  targets: ../.agentevo/config/targets.yaml
+  evaluators: ../.agentevo/config/evaluators.yaml
+artifact:
+  current: artifacts/current.json
+
+datasets:
+  - id: sql_generation
+    source:
+      type: jsonl
+      path: ./datasets/sql_generation.jsonl
+    schema:
+      fields:
+        - name: prompt
+          type: string
+        - name: expected_sql
+          type: string
+        - name: schema
+          type: string
+        - name: checks
+          type: array
+          items: string
+  - id: explain_queries
+    source:
+      type: inline
+      rows:
+        - id: explain-1
+          prompt: "Describe what this SQL does: SELECT id, SUM(amount) FROM orders GROUP BY id HAVING SUM(amount) > 1000"
+          expected_sql: ""
+          schema: orders(id, amount)
+          checks:
+            - "Mention HAVING filters"
+            - "Explain aggregation purpose"
+
+
+tasks:
+  - id: sql-write
+    dataset: sql_generation
+    inputMapping:
+      taskText: ${dataset.prompt}
+      context:
+        schema: ${dataset.schema}
+        checks: ${dataset.checks}
+    expectedMapping:
+      ideal: ${dataset.expected_sql}
+    signature: sql_author_v1
+    target: default_internal
+    evaluators:
+      - lexical_accuracy
+      - groundedness_judge
+      - latency_budget
+  - id: sql-explain
+    dataset: explain_queries
+    inputMapping:
+      taskText: ${dataset.prompt}
+      context:
+        schema: ${dataset.schema}
+        checks: ${dataset.checks}
+    expectedMapping:
+      ideal: ${dataset.expected_sql}
+    signature: sql_author_v1
+    target: default_internal
+    evaluators:
+      - groundedness_judge
+      - latency_budget
+
+scoring:
+  objectives:
+    correctness:
+      evaluator: lexical_accuracy
+      weight: 0.4
+    groundedness:
+      evaluator: groundedness_judge
+      weight: 0.4
+    latency:
+      evaluator: latency_budget
+      weight: 0.2
+  gates:
+    - evaluator: groundedness_judge
+      condition: greater_or_equal
+      value: 0.65
+      onFail: block_promotion
+
+reporting:
+  outputs:
+    - type: json
+      path: ./reports/query-quality.json

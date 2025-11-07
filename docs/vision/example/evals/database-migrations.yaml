@@ -1,0 +1,109 @@
+version: 1
+metadata:
+  name: database-migrations
+  description: Example large-panel structure referencing shared config
+  tags:
+    - database
+    - migration
+imports:
+  targets: ../.agentevo/config/targets.yaml
+  evaluators: ../.agentevo/config/evaluators.yaml
+artifact:
+  current: artifacts/current.json
+
+datasets:
+  - id: migration_playbook
+    source:
+      type: jsonl
+      path: ./datasets/migration_playbook.jsonl
+    schema:
+      fields:
+        - name: task
+          type: string
+        - name: expected_steps
+          type: string
+        - name: constraints
+          type: array
+          items: string
+  - id: rollback_scenarios
+    source:
+      type: inline
+      rows:
+        - id: rollback-1
+          task: "Roll back migration 2024_09_ddl safely"
+          expected_steps: |
+            1. Put service in maintenance
+            2. Restore snapshot
+            3. Verify integrity checks
+            4. Reopen traffic and monitor
+          constraints:
+            - "No data loss"
+            - "Max downtime 5 minutes"
+        - id: rollback-2
+          task: "Recover from failed schema migration that dropped index"
+          expected_steps: |
+            1. Identify missing index
+            2. Restore index definition
+            3. Replay queued writes
+            4. Confirm query latency baseline
+          constraints:
+            - "Do not block read replicas"
+            - "Report to incident channel"
+
+tasks:
+  - id: migration-plan
+    dataset: migration_playbook
+    inputMapping:
+      taskText: ${dataset.task}
+      context:
+        constraints: ${dataset.constraints}
+    expectedMapping:
+      ideal: ${dataset.expected_steps}
+    signature: operations_planner_v1
+    target: default_internal
+    evaluators:
+      - lexical_accuracy
+      - groundedness_judge
+      - latency_budget
+  - id: rollback-plan
+    dataset: rollback_scenarios
+    inputMapping:
+      taskText: ${dataset.task}
+      context:
+        constraints: ${dataset.constraints}
+    expectedMapping:
+      ideal: ${dataset.expected_steps}
+    signature: operations_planner_v1
+    target: default_internal
+    evaluators:
+      - lexical_accuracy
+      - groundedness_judge
+      - latency_budget
+      - safety_guardrail
+
+scoring:
+  objectives:
+    correctness:
+      evaluator: lexical_accuracy
+      weight: 0.45
+    groundedness:
+      evaluator: groundedness_judge
+      weight: 0.25
+    latency:
+      evaluator: latency_budget
+      weight: 0.15
+    safety:
+      evaluator: safety_guardrail
+      weight: 0.15
+  gates:
+    - evaluator: safety_guardrail
+      condition: equals
+      value: pass
+      onFail: block_promotion
+
+reporting:
+  outputs:
+    - type: json
+      path: ./reports/database-migrations.json
+    - type: markdown
+      path: ./reports/database-migrations.md

@@ -1,0 +1,38 @@
+version: 1
+# Shared execution targets used by eval panels.
+# Individual panels can reference these via `target: default_internal` or override with inline blocks.
+targets:
+  default_internal:
+    execution:
+      mode: internal
+      maxConcurrency: 4
+    llm:
+      provider: azure_openai
+      deploymentEnv: AZURE_DEPLOYMENT_NAME
+      endpointEnv: AZURE_OPENAI_ENDPOINT
+      apiKeyEnv: AZURE_OPENAI_API_KEY
+      temperature: 0.2
+      maxTokens: 2048
+    telemetry:
+      traces:
+        enabled: true
+        spanFormat: agent_lightning_reward
+        tags:
+          source: shared
+  default_external_judge:
+    extends: default_internal
+    llm:
+      deploymentEnv: AZURE_GPT4O_DEPLOYMENT
+      temperature: 0.0
+    telemetry:
+      traces:
+        tags:
+          role: judge
+  vscode_projectx:
+    extends: default_internal
+    execution:
+      mode: external
+      adapter: vscode
+      workspaceEnv: PROJECTX_WORKSPACE_PATH
+    llm:
+      temperature: 0.1
