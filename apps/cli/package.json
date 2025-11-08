@@ -12,7 +12,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsup",
-    "test": "vitest --run --dir test"
+    "test": "vitest --run"
   },
   "dependencies": {
     "@agentevo/core": "workspace:*",
