@@ -1,5 +1,5 @@
-import { access, readFile } from "node:fs/promises";
 import { constants } from "node:fs";
+import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
@@ -341,12 +341,15 @@ function buildSearchRoots(testPath: string, repoRoot: string): readonly string[]
   };
 
   let currentDir = path.dirname(testPath);
-  while (true) {
+  let reachedBoundary = false;
+  while (!reachedBoundary) {
     addRoot(currentDir);
-    if (currentDir === repoRoot || path.dirname(currentDir) === currentDir) {
-      break;
+    const parentDir = path.dirname(currentDir);
+    if (currentDir === repoRoot || parentDir === currentDir) {
+      reachedBoundary = true;
+    } else {
+      currentDir = parentDir;
     }
-    currentDir = path.dirname(currentDir);
   }
 
   addRoot(repoRoot);

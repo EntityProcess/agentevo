@@ -1,6 +1,5 @@
-import type { Command } from "commander";
-
 import { createAgentKernel } from "@agentevo/core";
+import type { Command } from "commander";
 
 export function registerStatusCommand(program: Command): Command {
   program

@@ -16,7 +16,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsx watch src/index.ts",
-    "test": "vitest --run --dir test"
+    "test": "vitest --run"
   },
   "files": [
     "dist"

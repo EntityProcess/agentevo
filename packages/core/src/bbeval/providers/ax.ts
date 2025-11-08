@@ -1,8 +1,8 @@
 import { AxAI } from "@ax-llm/ax";
 import type { AxChatRequest, AxChatResponse, AxModelConfig } from "@ax-llm/ax";
 
-import type { Provider, ProviderRequest, ProviderResponse } from "./types.js";
 import type { AnthropicResolvedConfig, AzureResolvedConfig } from "./targets.js";
+import type { Provider, ProviderRequest, ProviderResponse } from "./types.js";
 import type { JsonObject } from "../types.js";
 
 const DEFAULT_SYSTEM_PROMPT = "You are a careful assistant. Follow all provided instructions and do not fabricate results.";

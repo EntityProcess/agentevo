@@ -1,5 +1,3 @@
-const path = require("path");
-
 module.exports = {
   root: true,
   env: {
@@ -8,7 +6,7 @@ module.exports = {
   },
   parser: "@typescript-eslint/parser",
   parserOptions: {
-    project: [path.resolve(__dirname, "tsconfig.json")],
+    project: ["./tsconfig.eslint.json"],
     tsconfigRootDir: __dirname,
   },
   plugins: ["@typescript-eslint", "import"],
@@ -22,7 +20,7 @@ module.exports = {
   settings: {
     "import/resolver": {
       typescript: {
-        project: path.resolve(__dirname, "tsconfig.json"),
+        project: ["./tsconfig.eslint.json"],
       },
     },
   },
@@ -58,6 +56,7 @@ module.exports = {
     "**/_codegen/**",
     "**/openapi/**",
     "**/*.generated.*",
+    "**/*.d.ts",
     "logs",
     "*.log",
   ],

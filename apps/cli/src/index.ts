@@ -1,6 +1,5 @@
-import { pathToFileURL } from "node:url";
-
 import { Command } from "commander";
+import { pathToFileURL } from "node:url";
 
 import { registerStatusCommand } from "./commands/status.js";
 

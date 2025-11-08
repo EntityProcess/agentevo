@@ -2,14 +2,7 @@ import { AnthropicProvider, AzureProvider } from "./ax.js";
 import { MockProvider } from "./mock.js";
 import type { ResolvedTarget } from "./targets.js";
 import { resolveTargetDefinition } from "./targets.js";
-import type {
-  EnvLookup,
-  Provider,
-  ProviderKind,
-  ProviderRequest,
-  ProviderResponse,
-  TargetDefinition,
-} from "./types.js";
+import type { EnvLookup, Provider, TargetDefinition } from "./types.js";
 import { VSCodeProvider } from "./vscode.js";
 
 export type {
@@ -42,10 +35,11 @@ export function createProvider(target: ResolvedTarget): Provider {
     case "vscode":
     case "vscode-insiders":
       return new VSCodeProvider(target.name, target.config, target.kind);
-    default:
+    default: {
       // Exhaustive check
       const neverTarget: never = target;
       throw new Error(`Unsupported provider kind ${(neverTarget as { kind: string }).kind}`);
+    }
   }
 }
 
