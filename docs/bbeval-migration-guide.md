@@ -36,9 +36,9 @@ agentevo_1/
 
 Expect additional subdirectories during migration:
 
-- `packages/core/src/bbeval/` for domain models, parsing, evaluation, providers
+- `packages/core/src/evaluation/` for domain models, parsing, evaluation, providers
 - `apps/cli/src/commands/bbeval/` for CLI wiring
-- `packages/core/test/bbeval/` and `apps/cli/test/bbeval/` for Vitest coverage
+- `packages/core/test/evaluation/` and `apps/cli/test/evaluation/` for Vitest coverage
 - `docs/vision/` updates referencing the TS port once CLI is complete
 
 ## 3. Migration Phases & Task Breakdown
@@ -140,7 +140,7 @@ Run via Turborepo pipeline: `pnpm typecheck`, `pnpm lint`, `pnpm test`, optional
 
 ## 7. Next-Step Checklist for Subagents
 
-- [x] Add domain models (`packages/core/src/bbeval/types.ts`).
+- [x] Add domain models (`packages/core/src/evaluation/types.ts`).
 - [x] Implement YAML parsing + tests.
 - [x] Integrate provider adapters (Ax + VS Code dispatch) with environment validation.
 - [ ] Port evaluation orchestrator and grading logic.

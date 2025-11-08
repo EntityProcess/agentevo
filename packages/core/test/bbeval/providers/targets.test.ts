@@ -14,7 +14,7 @@ vi.mock("@ax-llm/ax", () => ({
   },
 }));
 
-const providerModule = await import("../../../src/bbeval/providers/index.js");
+const providerModule = await import("../../../src/evaluation/providers/index.js");
 const { resolveTargetDefinition, createProvider } = providerModule;
 
 describe("resolveTargetDefinition", () => {

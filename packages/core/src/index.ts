@@ -1,6 +1,6 @@
-export * from "./bbeval/types.js";
-export * from "./bbeval/yaml-parser.js";
-export * from "./bbeval/providers/index.js";
+export * from "./evaluation/types.js";
+export * from "./evaluation/yaml-parser.js";
+export * from "./evaluation/providers/index.js";
 
 export type AgentKernel = {
   status: string;
