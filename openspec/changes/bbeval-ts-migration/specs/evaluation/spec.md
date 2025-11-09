@@ -256,3 +256,28 @@ The system SHALL validate all configuration inputs with clear error messages.
 - **WHEN** the system initializes a provider
 - **THEN** it validates that all required environment variables are present and non-empty
 - **AND** provides a helpful error message listing missing variables if validation fails
+
+### Requirement: Example Eval Validation
+
+The system SHALL successfully execute the bundled example evaluation file to validate end-to-end functionality.
+
+#### Scenario: Execute example.test.yaml
+
+- **WHEN** the system runs the example evaluation file at `docs/examples/simple/evals/example.test.yaml`
+- **THEN** all test cases execute successfully
+- **AND** the output includes evaluation results for each test case
+- **AND** the results demonstrate correct behavior of text content, file references, and multi-turn conversations
+
+#### Scenario: Validate file reference resolution
+
+- **WHEN** the example eval references instruction files (e.g., `javascript.instructions.md`, `python.instructions.md`)
+- **THEN** the system resolves the file paths relative to the test file directory
+- **AND** includes the file contents in the request payload
+- **AND** the AI response demonstrates awareness of the instruction content
+
+#### Scenario: Multi-turn conversation handling
+
+- **WHEN** the example eval includes multi-turn test cases
+- **THEN** the system preserves conversation context across turns
+- **AND** evaluates the final assistant response against the expected outcome
+- **AND** demonstrates proper conversation flow in the results

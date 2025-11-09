@@ -117,6 +117,11 @@
   - [ ] 4.1.4 Write provider mocks and integration tests
   - [ ] 4.1.5 Achieve >80% coverage for core evaluation code
   - [ ] 4.1.6 Add end-to-end smoke tests
+  - [ ] 4.1.7 Test example eval execution (`docs/examples/simple/evals/example.test.yaml`)
+    - [ ] 4.1.7.1 Verify all test cases execute successfully
+    - [ ] 4.1.7.2 Validate file reference resolution for instruction files
+    - [ ] 4.1.7.3 Confirm multi-turn conversation handling
+    - [ ] 4.1.7.4 Verify output contains expected evaluation results
 - [ ] 4.2 Update documentation
   - [ ] 4.2.1 Create `docs/bbeval-usage.md` with CLI examples
   - [ ] 4.2.2 Document environment variable requirements
