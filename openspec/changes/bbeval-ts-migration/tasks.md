@@ -79,6 +79,8 @@
   - [x] 2.4.3 Add optional `grader_raw_request` field
   - [x] 2.4.4 Update type exports
 
+## 3. Build CLI & Outputs (Phase 6)
+
 - [x] 3.1 Extend CLI with eval command
   - [x] 3.1.1 Create `commands/eval/index.ts` with Commander.js setup
   - [x] 3.1.2 Add positional `test_file` argument
@@ -115,11 +117,9 @@
 ## 5. Validation & Migration
 
 - [ ] 5.1 Validate against Python version
-  - [ ] 5.1.1 Execute `agentevo eval docs/examples/simple/evals/example.test.yaml` with the TypeScript pipeline
-  - [ ] 5.1.2 Execute `bbeval .\evals\example.test.yaml` (direct LLM call) from the Python implementation
-  - [ ] 5.1.3 Execute `bbeval .\evals\example.test.yaml --target vscode_projectx` to exercise the external agent path
-  - [ ] 5.1.4 Compare outputs across all three runs (scores, reasoning, raw responses)
-  - [ ] 5.1.5 Document intentional differences and justify any remaining gaps
+  - [ ] 5.1.1 Run same test files with both implementations
+  - [ ] 5.1.2 Compare outputs for consistency
+  - [ ] 5.1.3 Document any intentional differences
 - [ ] 5.2 Update migration guide
   - [ ] 5.2.1 Mark completed phases
   - [ ] 5.2.2 Update outstanding decisions section
