@@ -8,13 +8,16 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "build": "pnpm -r build",
-    "typecheck": "tsc -b tsconfig.build.json",
-    "lint": "eslint . --ext .ts",
-    "lint:fix": "eslint . --ext .ts --fix",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck:workspace",
+    "typecheck:workspace": "tsc -b tsconfig.build.json",
+    "typecheck:watch": "turbo run typecheck:workspace -- --watch",
+    "lint": "turbo run lint:workspace",
+    "lint:workspace": "eslint . --ext .ts",
+    "lint:fix": "turbo run lint:workspace -- --fix",
+    "test": "turbo run test",
+    "test:watch": "turbo run test:watch",
+    "test:coverage": "turbo run test:coverage",
     "format": "prettier --cache --write .",
     "format:check": "prettier --check .",
     "dev": "pnpm --filter @agentevo/cli dev"

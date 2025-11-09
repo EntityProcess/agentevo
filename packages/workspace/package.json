@@ -1,0 +1,11 @@
+{
+  "name": "@agentevo/workspace",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Workspace utility tasks",
+  "type": "module",
+  "scripts": {
+    "lint:workspace": "pnpm -w lint:workspace",
+    "typecheck:workspace": "pnpm -w typecheck:workspace"
+  }
+}
