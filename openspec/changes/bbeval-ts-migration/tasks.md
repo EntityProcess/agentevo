@@ -79,10 +79,8 @@
   - [x] 2.4.3 Add optional `grader_raw_request` field
   - [x] 2.4.4 Update type exports
 
-## 3. Build CLI & Outputs (Phase 6)
-
-- [ ] 3.1 Extend CLI with bbeval command
-  - [ ] 3.1.1 Create `commands/bbeval/index.ts` with Commander.js setup
+- [ ] 3.1 Extend CLI with eval command
+  - [ ] 3.1.1 Create `commands/eval/index.ts` with Commander.js setup
   - [ ] 3.1.2 Add positional `test_file` argument
   - [ ] 3.1.3 Implement all flags: `--target`, `--targets`, `--test-id`, `--out`, `--dry-run`, `--agent-timeout`, `--max-retries`, `--cache`, `--verbose`, `--dump-prompts`
   - [ ] 3.1.4 Wire up to main CLI entry point

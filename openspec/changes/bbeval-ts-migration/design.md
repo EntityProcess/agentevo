@@ -174,7 +174,7 @@ const geminiProvider = {
 
 ### 5. CLI Design
 
-**Decision**: Single `agentevo bbeval` command with all Python flags
+**Decision**: Single `agentevo eval` command with all Python flags
 
 **Rationale**:
 
@@ -185,7 +185,7 @@ const geminiProvider = {
 **Command structure**:
 
 ```bash
-agentevo bbeval <test-file> [options]
+agentevo eval <test-file> [options]
 
 Options:
   --target <name>          Override target provider

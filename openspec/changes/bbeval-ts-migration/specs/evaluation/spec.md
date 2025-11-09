@@ -189,7 +189,8 @@ The system SHALL provide a command-line interface matching Python bbeval's UX.
 
 #### Scenario: Positional test file argument
 
-- **WHEN** the user runs `agentevo bbeval <test-file>`
+- **WHEN** the user runs `agentevo eval <test-file>`
+- **THEN** the system loads and executes test cases from the specified file
 - **THEN** the system loads and executes test cases from the specified file
 
 #### Scenario: Target override flag
