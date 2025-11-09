@@ -39,10 +39,12 @@ However, the critical evaluation pipeline, grading logic, complete CLI implement
   - Recreate summary statistics output
 
 - **Quality & Documentation (Phase 7)**
-  - Add comprehensive Vitest coverage (parser, grading, CLI, providers)
-  - Document usage in `docs/`
-  - Ensure ESLint/Prettier compliance
-  - Provide example `targets.yaml` and `.env` notes
+  - Execute the simple evaluation example at `docs/examples/simple/evals/example.test.yaml`
+  - Confirm the TypeScript pipeline handles all test cases in that file
+
+- **Validation & Migration**
+  - Compare outputs between the agentevo TypeScript pipeline, the Python `bbeval .\evals\example.test.yaml` direct LLM run, and the external agent run `bbeval .\evals\example.test.yaml --target vscode_projectx`
+  - Document any intentional discrepancies and ensure parity targets are met
 
 ## Impact
 
@@ -57,6 +59,6 @@ However, the critical evaluation pipeline, grading logic, complete CLI implement
 
 1. End-to-end bbeval tests execute successfully with all providers (Azure, Anthropic, VS Code, Mock)
 2. CLI parity with Python version (all flags, output formats, target resolution)
-3. Test coverage >80% for core evaluation logic
-4. Documentation enables new users to run evaluations without consulting Python code
+3. `docs/examples/simple/evals/example.test.yaml` executes successfully with the TypeScript pipeline
+4. Output comparisons across agentevo, Python `bbeval`, and `bbeval --target vscode_projectx` demonstrate parity or documented differences
 5. All existing bbeval YAML test files work with TypeScript implementation

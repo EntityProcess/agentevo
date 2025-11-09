@@ -108,42 +108,18 @@
 
 ## 4. Quality & Documentation (Phase 7)
 
-- [ ] 4.1 Add comprehensive test coverage
-  - [ ] 4.1.1 Write parser tests (YAML loading, code block extraction, search order)
-  - [ ] 4.1.2 Write grading tests (heuristic scoring, error detection)
-  - [ ] 4.1.3 Write CLI tests (flag parsing, precedence, output files)
-  - [ ] 4.1.4 Write provider mocks and integration tests
-  - [ ] 4.1.5 Achieve >80% coverage for core evaluation code
-  - [ ] 4.1.6 Add end-to-end smoke tests
-  - [ ] 4.1.7 Test example eval execution (`docs/examples/simple/evals/example.test.yaml`)
-    - [ ] 4.1.7.1 Verify all test cases execute successfully
-    - [ ] 4.1.7.2 Validate file reference resolution for instruction files
-    - [ ] 4.1.7.3 Confirm multi-turn conversation handling
-    - [ ] 4.1.7.4 Verify output contains expected evaluation results
-- [ ] 4.2 Update documentation
-  - [ ] 4.2.1 Create `docs/agentevo-eval-usage.md` with CLI examples
-  - [ ] 4.2.2 Document environment variable requirements
-  - [ ] 4.2.3 Provide example `targets.yaml` configurations
-  - [ ] 4.2.4 Document provider-specific settings
-  - [ ] 4.2.5 Add troubleshooting guide
-  - [ ] 4.2.6 Update main README with eval section
-- [ ] 4.3 Ensure code quality
-  - [ ] 4.3.1 Run `pnpm lint` and fix all issues
-  - [ ] 4.3.2 Run `pnpm format:check` and format all files
-  - [ ] 4.3.3 Run `pnpm typecheck` and fix type errors
-  - [ ] 4.3.4 Add JSDoc comments to public APIs
-- [ ] 4.4 Create example configurations
-  - [ ] 4.4.1 Add example test YAML files
-  - [ ] 4.4.2 Add example `.env` template
-  - [ ] 4.4.3 Add example `targets.yaml`
-  - [ ] 4.4.4 Add example output samples
+- [ ] 4.1 Verify simple example evaluation
+  - [ ] 4.1.1 Run `docs/examples/simple/evals/example.test.yaml`
+  - [ ] 4.1.2 Confirm every test case in the example passes with the migrated TypeScript pipeline
 
 ## 5. Validation & Migration
 
 - [ ] 5.1 Validate against Python version
-  - [ ] 5.1.1 Run same test files with both implementations
-  - [ ] 5.1.2 Compare outputs for consistency
-  - [ ] 5.1.3 Document any intentional differences
+  - [ ] 5.1.1 Execute `agentevo eval docs/examples/simple/evals/example.test.yaml` with the TypeScript pipeline
+  - [ ] 5.1.2 Execute `bbeval .\evals\example.test.yaml` (direct LLM call) from the Python implementation
+  - [ ] 5.1.3 Execute `bbeval .\evals\example.test.yaml --target vscode_projectx` to exercise the external agent path
+  - [ ] 5.1.4 Compare outputs across all three runs (scores, reasoning, raw responses)
+  - [ ] 5.1.5 Document intentional differences and justify any remaining gaps
 - [ ] 5.2 Update migration guide
   - [ ] 5.2.1 Mark completed phases
   - [ ] 5.2.2 Update outstanding decisions section
