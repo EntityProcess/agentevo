@@ -9,3 +9,4 @@ coverage/
 *.tsbuildinfo.*
 .DS_Store
 .bbeval/
+.env

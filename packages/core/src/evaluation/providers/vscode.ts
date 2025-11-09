@@ -169,7 +169,12 @@ function collectInstructionFiles(attachments: readonly string[] | undefined): st
 
 function isInstructionPath(filePath: string): boolean {
   const normalized = filePath.split(path.sep).join("/");
-  return normalized.endsWith(".instructions.md") || normalized.includes("/instructions/");
+  return (
+    normalized.endsWith(".instructions.md") ||
+    normalized.includes("/instructions/") ||
+    normalized.endsWith(".prompt.md") ||
+    normalized.includes("/prompts/")
+  );
 }
 
 function pathToFileUri(filePath: string): string {
