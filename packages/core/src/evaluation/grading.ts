@@ -132,6 +132,8 @@ export class QualityGrader implements Grader {
 
 const QUALITY_SYSTEM_PROMPT = [
   "You are an expert evaluator tasked with grading a model answer.",
+  "Your goal is to grade the generated_answer based on how well it achieves the expected_outcome for the original task_requirements.",
+  "Use the reference_answer as a gold standard for a high-quality response. The generated_answer does not need to match it verbatim, but it should capture the key points and follow the same spirit.",
   "Respond with a compact JSON object using this schema:",
   '{"score": <float 0-1>, "hits": ["..."], "misses": ["..."], "reasoning": "..."}.',
   "Score must be between 0.0 and 1.0.",
