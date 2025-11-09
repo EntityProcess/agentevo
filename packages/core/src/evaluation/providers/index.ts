@@ -24,6 +24,7 @@ export type {
 } from "./targets.js";
 
 export { resolveTargetDefinition };
+export { readTargetDefinitions, listTargetNames } from "./targets-file.js";
 
 export function createProvider(target: ResolvedTarget): Provider {
   switch (target.kind) {

@@ -197,7 +197,7 @@ Options:
   --max-retries <n>        Retry limit for timeouts
   --cache                  Enable LLM response caching
   --verbose                Detailed logging
-  --dump-prompts           Save prompts to .bbeval/
+  --dump-prompts           Save prompts to .agentevo/
 ```
 
 **Alternatives considered**:

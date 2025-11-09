@@ -61,7 +61,7 @@
   - [x] 2.1.2 Implement `runEvaluation` function matching `run_evaluation`
   - [x] 2.1.3 Add retry loop for timeout errors only
   - [x] 2.1.4 Integrate caching toggle (default disabled)
-  - [x] 2.1.5 Implement prompt dumping to `.bbeval/prompts/` directory
+  - [x] 2.1.5 Implement prompt dumping to `.agentevo/prompts/` directory
   - [x] 2.1.6 Write orchestrator tests (happy path, retries, errors)
 - [x] 2.2 Port heuristic scoring
   - [x] 2.2.1 Implement `calculateHits` function from `grading.py`
@@ -121,12 +121,12 @@
     - [ ] 4.1.7.3 Confirm multi-turn conversation handling
     - [ ] 4.1.7.4 Verify output contains expected evaluation results
 - [ ] 4.2 Update documentation
-  - [ ] 4.2.1 Create `docs/bbeval-usage.md` with CLI examples
+  - [ ] 4.2.1 Create `docs/agentevo-eval-usage.md` with CLI examples
   - [ ] 4.2.2 Document environment variable requirements
   - [ ] 4.2.3 Provide example `targets.yaml` configurations
   - [ ] 4.2.4 Document provider-specific settings
   - [ ] 4.2.5 Add troubleshooting guide
-  - [ ] 4.2.6 Update main README with bbeval section
+  - [ ] 4.2.6 Update main README with eval section
 - [ ] 4.3 Ensure code quality
   - [ ] 4.3.1 Run `pnpm lint` and fix all issues
   - [ ] 4.3.2 Run `pnpm format:check` and format all files
@@ -145,7 +145,7 @@
   - [ ] 5.1.2 Compare outputs for consistency
   - [ ] 5.1.3 Document any intentional differences
 - [ ] 5.2 Update migration guide
-  - [ ] 5.2.1 Mark completed phases in `docs/bbeval-migration-guide.md`
+  - [ ] 5.2.1 Mark completed phases
   - [ ] 5.2.2 Update outstanding decisions section
   - [ ] 5.2.3 Add migration completion checklist
 - [ ] 5.3 Prepare for release

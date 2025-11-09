@@ -52,6 +52,7 @@ export interface RunEvaluationOptions {
   readonly now?: () => Date;
   readonly testId?: string;
   readonly verbose?: boolean;
+  readonly onResult?: (result: EvaluationResult) => MaybePromise<void>;
 }
 
 export async function runEvaluation(options: RunEvaluationOptions): Promise<readonly EvaluationResult[]> {
@@ -71,6 +72,7 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
     now,
     testId,
     verbose,
+    onResult,
   } = options;
 
   const load = loadTestCases;
@@ -149,6 +151,9 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
       judgeProvider,
     });
     results.push(result);
+    if (onResult) {
+      await onResult(result);
+    }
   }
 
   return results;

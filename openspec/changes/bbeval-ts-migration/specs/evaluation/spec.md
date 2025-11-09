@@ -141,7 +141,7 @@ The system SHALL optionally save request prompts to disk for debugging.
 #### Scenario: Dump prompts enabled
 
 - **WHEN** the `--dump-prompts` flag is provided
-- **THEN** the system creates a `.bbeval/prompts/` directory
+- **THEN** the system creates a `.agentevo/prompts/` directory
 - **AND** writes each request prompt as a separate file with test ID in the filename
 - **AND** includes the full request, guidelines, and provider settings
 
