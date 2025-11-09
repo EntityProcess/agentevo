@@ -56,28 +56,28 @@
 
 ## 2. Implement Evaluation Pipeline (Phase 5)
 
-- [ ] 2.1 Port evaluation orchestrator
-  - [ ] 2.1.1 Implement `runTestCase` function matching `_run_test_case_grading`
-  - [ ] 2.1.2 Implement `runEvaluation` function matching `run_evaluation`
-  - [ ] 2.1.3 Add retry loop for timeout errors only
-  - [ ] 2.1.4 Integrate caching toggle (default disabled)
-  - [ ] 2.1.5 Implement prompt dumping to `.bbeval/prompts/` directory
-  - [ ] 2.1.6 Write orchestrator tests (happy path, retries, errors)
-- [ ] 2.2 Port heuristic scoring
-  - [ ] 2.2.1 Implement `calculateHits` function from `grading.py`
-  - [ ] 2.2.2 Implement `calculateMisses` function from `grading.py`
-  - [ ] 2.2.3 Port `is_error_like` helper
-  - [ ] 2.2.4 Write scoring tests with fixtures
-- [ ] 2.3 Build Ax-powered QualityGrader
-  - [ ] 2.3.1 Create `QualityGrader` signature/program using Ax
-  - [ ] 2.3.2 Implement safe JSON parsing with fallback
-  - [ ] 2.3.3 Add reasoning extraction from LLM output
-  - [ ] 2.3.4 Write grader integration tests with mock LLM
-- [ ] 2.4 Complete EvaluationResult structure
-  - [ ] 2.4.1 Add optional `reasoning` field
-  - [ ] 2.4.2 Add optional `raw_request` field
-  - [ ] 2.4.3 Add optional `grader_raw_request` field
-  - [ ] 2.4.4 Update type exports
+- [x] 2.1 Port evaluation orchestrator
+  - [x] 2.1.1 Implement `runTestCase` function matching `_run_test_case_grading`
+  - [x] 2.1.2 Implement `runEvaluation` function matching `run_evaluation`
+  - [x] 2.1.3 Add retry loop for timeout errors only
+  - [x] 2.1.4 Integrate caching toggle (default disabled)
+  - [x] 2.1.5 Implement prompt dumping to `.bbeval/prompts/` directory
+  - [x] 2.1.6 Write orchestrator tests (happy path, retries, errors)
+- [x] 2.2 Port heuristic scoring
+  - [x] 2.2.1 Implement `calculateHits` function from `grading.py`
+  - [x] 2.2.2 Implement `calculateMisses` function from `grading.py`
+  - [x] 2.2.3 Port `is_error_like` helper
+  - [x] 2.2.4 Write scoring tests with fixtures
+- [x] 2.3 Build Ax-powered QualityGrader
+  - [x] 2.3.1 Create `QualityGrader` signature/program using Ax
+  - [x] 2.3.2 Implement safe JSON parsing with fallback
+  - [x] 2.3.3 Add reasoning extraction from LLM output
+  - [x] 2.3.4 Write grader integration tests with mock LLM
+- [x] 2.4 Complete EvaluationResult structure
+  - [x] 2.4.1 Add optional `reasoning` field
+  - [x] 2.4.2 Add optional `raw_request` field
+  - [x] 2.4.3 Add optional `grader_raw_request` field
+  - [x] 2.4.4 Update type exports
 
 ## 3. Build CLI & Outputs (Phase 6)
 
