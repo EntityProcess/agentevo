@@ -1,4 +1,4 @@
-When running python scripts, use command `uv run`.
+When running python scripts, ALWAYS use command `uv run <script.py>`.
 
 <!-- OPENSPEC:START -->
 # OpenSpec Instructions

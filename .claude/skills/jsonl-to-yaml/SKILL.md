@@ -33,16 +33,16 @@ The skill provides a Python script at `scripts/jsonl_to_yaml.py` that handles th
 
 **Usage:**
 ```bash
-python scripts/jsonl_to_yaml.py <input.jsonl> [output.yaml]
+uv run scripts/jsonl_to_yaml.py <input.jsonl> [output.yaml]
 ```
 
 **Examples:**
 ```bash
 # Convert with automatic output naming (input.yaml)
-python scripts/jsonl_to_yaml.py results.jsonl
+uv run scripts/jsonl_to_yaml.py results.jsonl
 
 # Convert with custom output path
-python scripts/jsonl_to_yaml.py results.jsonl readable_results.yaml
+uv run scripts/jsonl_to_yaml.py results.jsonl readable_results.yaml
 ```
 
 **Features:**
