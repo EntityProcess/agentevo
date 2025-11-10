@@ -10,7 +10,7 @@
 
 ### Phase 2 – TypeScript Scaffolding (✓ Completed)
 
-- [x] 0.2.1 Initialize pnpm/Turbo workspace mirroring `subagent` & `WTG.Knowledge`
+- [x] 0.2.1 Initialize pnpm/Turbo workspace
 - [x] 0.2.2 Create `@agentevo/core` and `@agentevo/cli` packages with build/test scripts
 
 ### Phase 3 – Core Domain Translation (✓ Completed)
