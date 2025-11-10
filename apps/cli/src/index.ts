@@ -1,13 +1,16 @@
 import { Command } from "commander";
+import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
 import { registerEvalCommand } from "./commands/eval/index.js";
 import { registerStatusCommand } from "./commands/status.js";
 
+const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+
 export function createProgram(): Command {
   const program = new Command();
 
-  program.name("agentevo").description("AgentEvo CLI scaffolding").version("0.0.1");
+  program.name("agentevo").description("AgentEvo CLI scaffolding").version(packageJson.version);
 
   registerStatusCommand(program);
   registerEvalCommand(program);
