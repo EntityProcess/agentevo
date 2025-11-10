@@ -10,7 +10,12 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { loadEnvFromHierarchy } from "./env.js";
-import { JsonlWriter } from "./jsonl-writer.js";
+import {
+  createOutputWriter,
+  getDefaultExtension,
+  type OutputFormat,
+  type OutputWriter,
+} from "./output-writer.js";
 import { calculateEvaluationSummary, formatEvaluationSummary } from "./statistics.js";
 import { selectTarget } from "./targets.js";
 
@@ -24,6 +29,7 @@ interface NormalizedOptions {
   readonly targetsPath?: string;
   readonly testId?: string;
   readonly outPath?: string;
+  readonly format: OutputFormat;
   readonly dryRun: boolean;
   readonly agentTimeoutSeconds: number;
   readonly maxRetries: number;
@@ -58,11 +64,15 @@ function normalizeNumber(value: unknown, fallback: number): number {
 }
 
 function normalizeOptions(rawOptions: Record<string, unknown>): NormalizedOptions {
+  const formatStr = normalizeString(rawOptions.format) ?? "jsonl";
+  const format: OutputFormat = formatStr === "yaml" ? "yaml" : "jsonl";
+
   return {
     target: normalizeString(rawOptions.target),
     targetsPath: normalizeString(rawOptions.targets),
     testId: normalizeString(rawOptions.testId),
     outPath: normalizeString(rawOptions.out),
+    format,
     dryRun: normalizeBoolean(rawOptions.dryRun),
     agentTimeoutSeconds: normalizeNumber(rawOptions.agentTimeout, 120),
     maxRetries: normalizeNumber(rawOptions.maxRetries, 2),
@@ -101,12 +111,13 @@ async function findRepoRoot(start: string): Promise<string> {
   return fallback;
 }
 
-function buildDefaultOutputPath(testFilePath: string, cwd: string): string {
+function buildDefaultOutputPath(testFilePath: string, cwd: string, format: OutputFormat): string {
   const testFileName = path.basename(testFilePath);
   const withoutExtension = testFileName.replace(/\.test\.ya?ml$/i, "").replace(/\.ya?ml$/i, "");
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   const baseName = withoutExtension.length > 0 ? withoutExtension : "results";
-  return path.join(cwd, ".agentevo", "results", `${baseName}_${timestamp}.jsonl`);
+  const extension = getDefaultExtension(format);
+  return path.join(cwd, ".agentevo", "results", `${baseName}_${timestamp}${extension}`);
 }
 
 function resolvePromptDirectory(option: string | boolean | undefined, cwd: string): string | undefined {
@@ -165,8 +176,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     ? `Using target (${targetSelection.targetSource}): ${targetSelection.targetName} [provider=${providerLabel}] via ${targetSelection.targetsFilePath}`
     : `Using target: ${targetSelection.targetName} [provider=${providerLabel}]`;
   console.log(targetMessage);
-
-  const outputPath = options.outPath ? path.resolve(options.outPath) : buildDefaultOutputPath(testFilePath, cwd);
+  const outputPath = options.outPath ? path.resolve(options.outPath) : buildDefaultOutputPath(testFilePath, cwd, options.format);
   console.log(`Output path: ${outputPath}`);
 
   const promptDumpDir = resolvePromptDirectory(options.dumpPrompts, cwd);
@@ -177,7 +187,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     }
   }
 
-  const jsonlWriter = await JsonlWriter.open(outputPath);
+  const outputWriter = await createOutputWriter(outputPath, options.format);
   const cache = options.cache ? createEvaluationCache() : undefined;
   const agentTimeoutMs = Math.max(0, options.agentTimeoutSeconds) * 1000;
 
@@ -198,11 +208,11 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
       testId: options.testId,
       verbose: options.verbose,
       onResult: async (result: EvaluationResult) => {
-        await jsonlWriter.append(result);
+        await outputWriter.append(result);
       },
     });
 
-    await jsonlWriter.close();
+    await outputWriter.close();
 
     const summary = calculateEvaluationSummary(results);
     console.log(formatEvaluationSummary(summary));
@@ -214,7 +224,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
       console.log(`Prompt payloads saved to: ${promptDumpDir}`);
     }
   } catch (error) {
-    await jsonlWriter.close().catch(() => undefined);
+    await outputWriter.close().catch(() => undefined);
     throw error;
   }
 }
