@@ -73,11 +73,18 @@
   - [x] 2.3.2 Implement safe JSON parsing with fallback
   - [x] 2.3.3 Add reasoning extraction from LLM output
   - [x] 2.3.4 Write grader integration tests with mock LLM
-- [x] 2.4 Complete EvaluationResult structure
-  - [x] 2.4.1 Add optional `reasoning` field
-  - [x] 2.4.2 Add optional `raw_request` field
-  - [x] 2.4.3 Add optional `grader_raw_request` field
-  - [x] 2.4.4 Update type exports
+- [x] 2.4 Migrate QualityGrader from DSPy markers to JSON-first contract
+  - [x] 2.4.1 Replace DSPy field markers `[[ ## field ## ]]` in system prompt with JSON schema specification
+  - [x] 2.4.2 Update prompt to instruct models to emit single JSON object: `{ "score": float, "hits": string[], "misses": string[], "reasoning": string }`
+  - [x] 2.4.3 Reorder parsing logic to parse JSON FIRST (primary), with DSPy marker parsing as deprecated fallback
+  - [x] 2.4.4 Add JSON schema validation with clear error messages
+  - [x] 2.4.5 Update tests to verify JSON-first parsing behavior
+  - [x] 2.4.6 Add constraint enforcement: score in [0.0, 1.0], max 4 entries each in hits/misses
+- [x] 2.5 Complete EvaluationResult structure
+  - [x] 2.5.1 Add optional `reasoning` field
+  - [x] 2.5.2 Add optional `raw_request` field
+  - [x] 2.5.3 Add optional `grader_raw_request` field
+  - [x] 2.5.4 Update type exports
 
 ## 3. Build CLI & Outputs (Phase 6)
 

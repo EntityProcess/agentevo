@@ -84,6 +84,124 @@ describe("QualityGrader", () => {
     expect(result.graderRawRequest).toBeDefined();
   });
 
+  it("parses JSON from markdown code block", async () => {
+    const judgeProvider = new StubProvider({
+      text: `Here is the evaluation:\n\n\`\`\`json\n${JSON.stringify({
+        score: 0.75,
+        hits: ["Clear structure", "Good examples"],
+        misses: ["Missing edge cases"],
+        reasoning: "Well done overall.",
+      })}\n\`\`\``,
+    });
+
+    const grader = new QualityGrader({
+      resolveJudgeProvider: async () => judgeProvider,
+    });
+
+    const result = await grader.grade({
+      testCase: { ...baseTestCase, grader: "llm_judge" },
+      candidate: "Answer",
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { request: "", guidelines: "" },
+      now: new Date(),
+    });
+
+    expect(result.score).toBeCloseTo(0.75);
+    expect(result.hits).toHaveLength(2);
+    expect(result.misses).toHaveLength(1);
+  });
+
+  it("validates score is in range [0.0, 1.0]", async () => {
+    const judgeProvider = new StubProvider({
+      text: JSON.stringify({
+        score: 1.5, // Invalid: out of range
+        hits: ["Good"],
+        misses: [],
+        reasoning: "Too high",
+      }),
+    });
+
+    const grader = new QualityGrader({
+      resolveJudgeProvider: async () => judgeProvider,
+    });
+
+    const result = await grader.grade({
+      testCase: { ...baseTestCase, grader: "llm_judge" },
+      candidate: "Answer",
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { request: "", guidelines: "" },
+      now: new Date(),
+    });
+
+    // Should fall back to defaults when validation fails
+    expect(result.score).toBe(0);
+    expect(result.hits).toHaveLength(0);
+    expect(result.misses).toHaveLength(0);
+  });
+
+  it("enforces max 4 entries for hits and misses", async () => {
+    const judgeProvider = new StubProvider({
+      text: JSON.stringify({
+        score: 0.9,
+        hits: ["Item 1", "Item 2", "Item 3", "Item 4", "Item 5", "Item 6"],
+        misses: ["Miss 1", "Miss 2", "Miss 3", "Miss 4", "Miss 5"],
+        reasoning: "Too many items",
+      }),
+    });
+
+    const grader = new QualityGrader({
+      resolveJudgeProvider: async () => judgeProvider,
+    });
+
+    const result = await grader.grade({
+      testCase: { ...baseTestCase, grader: "llm_judge" },
+      candidate: "Answer",
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { request: "", guidelines: "" },
+      now: new Date(),
+    });
+
+    expect(result.score).toBeCloseTo(0.9);
+    expect(result.hits).toHaveLength(4); // Truncated to max 4
+    expect(result.misses).toHaveLength(4); // Truncated to max 4
+  });
+
+  it("rejects JSON with invalid hits/misses types", async () => {
+    const judgeProvider = new StubProvider({
+      text: JSON.stringify({
+        score: 0.8,
+        hits: "Not an array", // Invalid type
+        misses: [],
+        reasoning: "Invalid hits",
+      }),
+    });
+
+    const grader = new QualityGrader({
+      resolveJudgeProvider: async () => judgeProvider,
+    });
+
+    const result = await grader.grade({
+      testCase: { ...baseTestCase, grader: "llm_judge" },
+      candidate: "Answer",
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { request: "", guidelines: "" },
+      now: new Date(),
+    });
+
+    // Should fall back to defaults when validation fails
+    expect(result.score).toBe(0);
+    expect(result.hits).toHaveLength(0);
+    expect(result.misses).toHaveLength(0);
+  });
+
   it("tolerates non-JSON output by falling back to defaults", async () => {
     const judgeProvider = new StubProvider({ text: "Final score: 0.5" });
     const grader = new QualityGrader({

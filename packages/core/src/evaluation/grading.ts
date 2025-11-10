@@ -103,10 +103,10 @@ export class QualityGrader implements Grader {
     const parsed = parseQualityResponse(response);
     const score = clampScore(parsed.score ?? 0);
     const hits = Array.isArray(parsed.hits)
-      ? parsed.hits.filter(isNonEmptyString)
+      ? parsed.hits.filter(isNonEmptyString).slice(0, 4)
       : [];
     const misses = Array.isArray(parsed.misses)
-      ? parsed.misses.filter(isNonEmptyString)
+      ? parsed.misses.filter(isNonEmptyString).slice(0, 4)
       : [];
 
     const reasoning = parsed.reasoning ?? response.reasoning;
@@ -131,25 +131,39 @@ export class QualityGrader implements Grader {
 }
 
 const QUALITY_SYSTEM_PROMPT = [
-  "You are an expert evaluator tasked with grading a model answer.",
-  "Your goal is to grade the generated_answer based on how well it achieves the expected_outcome for the original task_requirements.",
+  "You are an expert evaluator. Your goal is to grade the generated_answer based on how well it achieves the expected_outcome for the original task.",
+  "",
   "Use the reference_answer as a gold standard for a high-quality response. The generated_answer does not need to match it verbatim, but it should capture the key points and follow the same spirit.",
-  "Respond with a compact JSON object using this schema:",
-  '{"score": <float 0-1>, "hits": ["..."], "misses": ["..."], "reasoning": "..."}.',
-  "Score must be between 0.0 and 1.0.",
-  "hits and misses must each contain no more than 4 short bullet phrases.",
-  "If there are no misses, return an empty array.",
-  "Do not include any text outside the JSON object.",
-].join(" ");
+  "",
+  "Be concise and focused in your evaluation. Provide succinct, specific feedback rather than verbose explanations.",
+  "",
+  "You must respond with a single JSON object matching this schema:",
+  "",
+  "{",
+  '  "score": <number between 0.0 and 1.0>,',
+  '  "hits": [<array of strings, max 4 items, brief specific achievements>],',
+  '  "misses": [<array of strings, max 4 items, brief specific failures or omissions, empty if none>],',
+  '  "reasoning": "<string, concise explanation for the score, 1-2 sentences max>"',
+  "}",
+].join("\n");
 
 function buildQualityPrompt(testCase: TestCase, candidate: string): string {
   const parts = [
-    `Expected Outcome:\n${testCase.outcome}`,
-    `User Request:\n${testCase.task}`,
-    `Reference Answer:\n${testCase.expected_assistant_raw}`,
-    `Candidate Answer:\n${candidate}`,
+    "[[ ## expected_outcome ## ]]",
+    testCase.outcome,
+    "",
+    "[[ ## request ## ]]",
+    testCase.task,
+    "",
+    "[[ ## reference_answer ## ]]",
+    testCase.expected_assistant_raw,
+    "",
+    "[[ ## generated_answer ## ]]",
+    candidate,
+    "",
+    "Respond with a single JSON object matching the schema described in the system prompt.",
   ];
-  return parts.join("\n\n");
+  return parts.join("\n");
 }
 
 function clampScore(value: number): number {
@@ -176,15 +190,17 @@ function parseQualityResponse(response: ProviderResponse): {
     return {};
   }
 
+  // Try parsing JSON directly
   const direct = attemptParseJson(text);
-  if (direct) {
+  if (direct && validateQualityJson(direct)) {
     return direct;
   }
 
+  // Try extracting JSON from markdown code blocks or surrounding text
   const extracted = extractJsonBlob(text);
   if (extracted) {
     const parsed = attemptParseJson(extracted);
-    if (parsed) {
+    if (parsed && validateQualityJson(parsed)) {
       return parsed;
     }
   }
@@ -210,6 +226,51 @@ function attemptParseJson(text: string):
   } catch {
     return undefined;
   }
+}
+
+function validateQualityJson(parsed: {
+  readonly score?: number;
+  readonly hits?: unknown;
+  readonly misses?: unknown;
+  readonly reasoning?: string;
+}): boolean {
+  // Validate score is present and in valid range [0.0, 1.0]
+  if (typeof parsed.score !== "number") {
+    return false;
+  }
+  if (Number.isNaN(parsed.score) || !Number.isFinite(parsed.score)) {
+    return false;
+  }
+  if (parsed.score < 0 || parsed.score > 1) {
+    return false;
+  }
+
+  // Validate hits is an array of strings (max 4 will be enforced during extraction)
+  if (parsed.hits !== undefined) {
+    if (!Array.isArray(parsed.hits)) {
+      return false;
+    }
+    if (!parsed.hits.every((item) => typeof item === "string")) {
+      return false;
+    }
+  }
+
+  // Validate misses is an array of strings (max 4 will be enforced during extraction)
+  if (parsed.misses !== undefined) {
+    if (!Array.isArray(parsed.misses)) {
+      return false;
+    }
+    if (!parsed.misses.every((item) => typeof item === "string")) {
+      return false;
+    }
+  }
+
+  // Validate reasoning is a string if present
+  if (parsed.reasoning !== undefined && typeof parsed.reasoning !== "string") {
+    return false;
+  }
+
+  return true;
 }
 
 function extractJsonBlob(text: string): string | undefined {

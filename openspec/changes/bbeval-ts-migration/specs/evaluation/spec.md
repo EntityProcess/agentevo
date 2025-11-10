@@ -64,6 +64,25 @@ The system SHALL provide optional LLM-based quality grading using structured out
 - **THEN** the system logs a warning
 - **AND** returns a null LLM score with the raw response for debugging
 
+### Requirement: Quality Grader JSON Contract
+
+The system SHALL instruct judge models to emit a single JSON object and validate responses against that contract.
+
+#### Scenario: Enforce JSON prompt contract
+
+- **WHEN** the quality grader builds the system prompt
+- **THEN** it enumerates the required input fields (`expected_outcome`, `request`, `reference_answer`, `generated_answer`)
+- **AND** specifies the JSON schema `{ "score": float, "hits": string[], "misses": string[], "reasoning": string }`
+- **AND** instructs the model to return only that JSON object with `score` constrained to `[0.0, 1.0]` and at most four entries in `hits` and `misses`
+
+#### Scenario: Parse JSON grader response
+
+- **WHEN** a judge provider returns a response for quality grading
+- **THEN** the system parses the first JSON object from the response body
+- **AND** clamps the numeric score to the inclusive range `[0, 1]`
+- **AND** filters `hits` and `misses` to non-empty trimmed strings, defaulting to empty arrays when parsing fails
+- **AND** falls back to a score of `0` with empty feedback if no valid JSON object is present
+
 ### Requirement: Provider Integration
 
 The system SHALL support multiple LLM providers with environment-based configuration.
