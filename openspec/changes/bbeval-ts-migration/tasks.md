@@ -117,10 +117,17 @@
 
 ## 4. Quality & Documentation (Phase 7)
 
-- [ ] 4.1 Verify simple example evaluation
-  - [ ] 4.1.1 Run `cd docs\examples\simple; bbeval .\evals\example.test.yaml --target vscode_projectx --test-id simple-text-conversation`
-  - [ ] 4.1.2 Run same command using TypeScript migration: `cd docs\examples\simple; agentevo eval .\evals\example.test.yaml --target vscode_projectx --test-id simple-text-conversation`
-  - [ ] 4.1.3 Confirm both implementations produce consistent results
+- [ ] 4.1 Add YAML output format support
+  - [ ] 4.1.1 Add `--format <format>` CLI flag accepting 'jsonl' or 'yaml'
+  - [ ] 4.1.2 Create YamlWriter class for incremental YAML output
+  - [ ] 4.1.3 Update output writer selection logic based on format flag
+  - [ ] 4.1.4 Write tests for YAML format output
+  - [ ] 4.1.5 Validate YAML output is well-formed and parseable
+- [ ] 4.2 Verify simple example evaluation
+  - [ ] 4.2.1 Run `cd docs\examples\simple; bbeval .\evals\example.test.yaml --target vscode_projectx --test-id simple-text-conversation`
+  - [ ] 4.2.2 Run same command using TypeScript migration: `cd docs\examples\simple; agentevo eval .\evals\example.test.yaml --target vscode_projectx --test-id simple-text-conversation`
+  - [ ] 4.2.3 Confirm both implementations produce consistent results
+  - [ ] 4.2.4 Test YAML output format: `agentevo eval .\evals\example.test.yaml --format yaml`
 
 ## 5. Validation & Migration
 

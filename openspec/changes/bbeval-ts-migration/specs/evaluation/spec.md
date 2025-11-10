@@ -186,6 +186,29 @@ The system SHALL write evaluation results incrementally to a newline-delimited J
 - **AND** each line is terminated with a newline character
 - **AND** no trailing commas or array brackets are used
 
+### Requirement: Output Format Selection
+
+The system SHALL support multiple output formats with JSONL as the default.
+
+#### Scenario: JSONL output format (default)
+
+- **WHEN** the user does not specify the `--format` flag
+- **THEN** the system writes results in JSONL format (newline-delimited JSON)
+- **AND** each result is appended immediately after test case completion
+
+#### Scenario: YAML output format
+
+- **WHEN** the user specifies `--format yaml`
+- **THEN** the system writes results in YAML format
+- **AND** the output contains a well-formed YAML document with all results
+- **AND** results are written incrementally as a YAML sequence
+
+#### Scenario: Invalid format specification
+
+- **WHEN** the user specifies an unsupported format value
+- **THEN** the system reports an error listing valid format options (jsonl, yaml)
+- **AND** exits without running the evaluation
+
 ### Requirement: Summary Statistics
 
 The system SHALL calculate and display summary statistics for evaluation results.
@@ -225,7 +248,13 @@ The system SHALL provide a command-line interface matching Python bbeval's UX.
 #### Scenario: Output file specification
 
 - **WHEN** the user provides `--out <path>`
-- **THEN** the system writes JSONL results to the specified path
+- **THEN** the system writes results to the specified path in the selected format
+
+#### Scenario: Output format flag
+
+- **WHEN** the user provides `--format <format>`
+- **THEN** the system writes results in the specified format (jsonl or yaml)
+- **AND** defaults to jsonl when the flag is not provided
 
 #### Scenario: Dry-run mode
 
