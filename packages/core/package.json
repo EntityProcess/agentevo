@@ -1,6 +1,6 @@
 {
   "name": "@agentevo/core",
-  "version": "0.0.1",
+  "version": "0.1.2",
   "description": "Primitive runtime components for AgentEvo",
   "type": "module",
   "main": "./dist/index.js",
@@ -22,7 +22,8 @@
   },
   "files": [
     "dist",
-    "src/index.d.ts"
+    "src/index.d.ts",
+    "README.md"
   ],
   "dependencies": {
     "@ax-llm/ax": "^14.0.39",
