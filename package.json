@@ -21,7 +21,7 @@
     "format": "prettier --cache --write .",
     "format:check": "prettier --check .",
     "dev": "pnpm --filter @agentevo/cli dev",
-    "agentevo": "node apps/cli/dist/index.js"
+    "agentevo": "node apps/cli/dist/cli.js"
   },
   "devDependencies": {
     "@types/node": "24.1.0",
