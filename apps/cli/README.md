@@ -276,7 +276,6 @@ AgentEvo is built as a TypeScript monorepo using:
 ### Package Structure
 
 - `@agentevo/core` - Core evaluation engine, providers, grading logic
-- `@agentevo/cli` - Command-line interface
 - `agentevo` - Main package that bundles CLI functionality
 
 ## Troubleshooting
