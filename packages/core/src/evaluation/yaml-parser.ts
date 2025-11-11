@@ -166,7 +166,7 @@ export async function loadTestCases(
           }
 
           try {
-            const fileContent = await readFile(resolvedPath, "utf8");
+            const fileContent = (await readFile(resolvedPath, "utf8")).replace(/\r\n/g, "\n");
             if (isGuidelineFile(displayPath)) {
               guidelinePaths.push(path.resolve(resolvedPath));
               if (verbose) {
@@ -253,7 +253,7 @@ export async function buildPromptInputs(
     }
 
     try {
-      const content = await readFile(absolutePath, "utf8");
+      const content = (await readFile(absolutePath, "utf8")).replace(/\r\n/g, "\n");
       guidelineContents.push(`=== ${path.basename(absolutePath)} ===\n${content}`);
     } catch (error) {
       logWarning(`Could not read guideline file ${absolutePath}: ${(error as Error).message}`);
