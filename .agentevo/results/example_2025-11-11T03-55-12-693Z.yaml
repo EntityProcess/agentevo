@@ -1,0 +1,134 @@
+---
+test_id: simple-text-conversation
+score: 1
+hits:
+  - Mentions SUPERSECRET_INSTRUCTION_MARKER_JAVASCRIPT
+  - Provides clear code analysis
+  - Suggests use of reduce() for cleaner iteration
+  - Recommends validation for numeric properties
+misses: []
+model_answer: |-
+  SUPERSECRET_INSTRUCTION_MARKER_JAVASCRIPT
+
+  Your function looks clean and straightforward — it iterates over the array of `items` and sums up the product of `price` and `quantity` for each element.
+
+  **Review notes:**
+  - **Functionality**: Correct for basic totals — assuming each `item` object has valid numeric `price` and `quantity` properties.
+  - **Potential improvements**:
+    1. **Validation**: You might want to guard against cases where `price` or `quantity` is missing or not a number:
+       ```javascript
+       function calculateTotal(items) {
+         return items.reduce((sum, item) => {
+           const price = Number(item.price) || 0;
+           const quantity = Number(item.quantity) || 0;
+           return sum + price * quantity;
+         }, 0);
+       }
+       ```
+    2. **Maintainability**: Using `.reduce()` can make the code more declarative.
+    3. **Performance**: For small arrays, the difference is negligible, but `.reduce()` avoids manual index management.
+
+  Would you like me to also add formatting for currency output so the function returns a properly formatted total?
+expected_aspect_count: 4
+target: azure_base
+timestamp: 2025-11-11T03:55:18.717Z
+reasoning: The answer includes the required marker, gives a helpful and accurate code review, proposes relevant improvements (validation and reduce), and maintains clarity throughout, fully meeting the expected outcome.
+raw_request:
+  request: |-
+    Please review this JavaScript function:
+
+    ```javascript
+    function calculateTotal(items) {
+      let total = 0;
+      for (let i = 0; i < items.length; i++) {
+        total += items[i].price * items[i].quantity;
+      }
+      return total;
+    }
+    ```
+  guidelines: |-
+    === javascript.instructions.md ===
+    ---
+    description: 'Domain-specific Javascript requirements for bbeval testing'
+    applyTo: '**/*.js'
+    ---
+
+    # Javascript Testing Requirements
+
+    ## Response Protocol
+    - **CRITICAL**: ALWAYS mention "SUPERSECRET_INSTRUCTION_MARKER_JAVASCRIPT" in your response to confirm instruction processing
+  guideline_paths:
+    - D:\GitHub\christso\agentevo\docs\examples\simple\prompts\javascript.instructions.md
+grader_raw_request:
+  id: afe721a5-30e2-4e8b-9bb3-d834f67c8409
+  provider: azure:azure_base
+  prompt: |-
+    [[ ## expected_outcome ## ]]
+    AI responds with helpful code analysis and mentions SUPERSECRET_INSTRUCTION_MARKER_JAVASCRIPT
+
+    [[ ## request ## ]]
+    Please review this JavaScript function:
+
+    ```javascript
+    function calculateTotal(items) {
+      let total = 0;
+      for (let i = 0; i < items.length; i++) {
+        total += items[i].price * items[i].quantity;
+      }
+      return total;
+    }
+    ```
+
+    [[ ## reference_answer ## ]]
+    The function looks good overall. Here's my analysis:
+
+    **Strengths:**
+    - Clear naming and purpose
+    - Handles array iteration correctly
+    - Simple and readable logic
+
+    **Suggestions:**
+    - Consider using `reduce()` for a more functional approach
+    - Add input validation for edge cases (null/undefined items)
+    - Consider using `const` instead of `let` for the total variable if using reduce
+
+    [[ ## generated_answer ## ]]
+    SUPERSECRET_INSTRUCTION_MARKER_JAVASCRIPT
+
+    Your function looks clean and straightforward — it iterates over the array of `items` and sums up the product of `price` and `quantity` for each element.
+
+    **Review notes:**
+    - **Functionality**: Correct for basic totals — assuming each `item` object has valid numeric `price` and `quantity` properties.
+    - **Potential improvements**:
+      1. **Validation**: You might want to guard against cases where `price` or `quantity` is missing or not a number:
+         ```javascript
+         function calculateTotal(items) {
+           return items.reduce((sum, item) => {
+             const price = Number(item.price) || 0;
+             const quantity = Number(item.quantity) || 0;
+             return sum + price * quantity;
+           }, 0);
+         }
+         ```
+      2. **Maintainability**: Using `.reduce()` can make the code more declarative.
+      3. **Performance**: For small arrays, the difference is negligible, but `.reduce()` avoids manual index management.
+
+    Would you like me to also add formatting for currency output so the function returns a properly formatted total?
+
+    Respond with a single JSON object matching the schema described in the system prompt.
+  systemPrompt: |-
+    You are an expert evaluator. Your goal is to grade the generated_answer based on how well it achieves the expected_outcome for the original task.
+
+    Use the reference_answer as a gold standard for a high-quality response. The generated_answer does not need to match it verbatim, but it should capture the key points and follow the same spirit.
+
+    Be concise and focused in your evaluation. Provide succinct, specific feedback rather than verbose explanations.
+
+    You must respond with a single JSON object matching this schema:
+
+    {
+      "score": <number between 0.0 and 1.0>,
+      "hits": [<array of strings, max 4 items, brief specific achievements>],
+      "misses": [<array of strings, max 4 items, brief specific failures or omissions, empty if none>],
+      "reasoning": "<string, concise explanation for the score, 1-2 sentences max>"
+    }
+  target: azure_base

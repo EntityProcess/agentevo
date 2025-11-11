@@ -134,12 +134,12 @@
 - [x] 5.1 Validate against Python version
   - [x] 5.1.1 Run same test files with both implementations
   - [x] 5.1.2 Compare outputs for consistency
-  - [ ] 5.1.3 Document any intentional differences
-- [ ] 5.2 Update migration guide
-  - [ ] 5.2.1 Mark completed phases
-  - [ ] 5.2.2 Update outstanding decisions section
-  - [ ] 5.2.3 Add migration completion checklist
-- [ ] 5.3 Prepare for release
-  - [ ] 5.3.1 Update package versions
-  - [ ] 5.3.2 Add CHANGELOG entries
-  - [ ] 5.3.3 Tag release commit
+  - [x] 5.1.3 Document any intentional differences
+- [x] 5.2 Update migration guide
+  - [x] 5.2.1 Mark completed phases
+  - [x] 5.2.2 Update outstanding decisions section
+  - [x] 5.2.3 Add migration completion checklist
+- [x] 5.3 Prepare for release
+  - [x] 5.3.1 Update package versions
+  - [x] 5.3.2 Add CHANGELOG entries
+  - [x] 5.3.3 Tag release commit
