@@ -133,7 +133,7 @@ Environment keys (configured via targets.yaml):
 - **Azure OpenAI:** Set environment variables specified in your target's `settings.endpoint`, `settings.api_key`, and `settings.model`
 - **Anthropic Claude:** Set environment variables specified in your target's `settings.api_key` and `settings.model`
 - **Google Gemini:** Set environment variables specified in your target's `settings.api_key` and optional `settings.model`
-- **VS Code:** Set environment variable specified in your target's `settings.workspace_env_var` → `.code-workspace` path
+- **VS Code:** Set environment variable specified in your target's `settings.workspace_env` → `.code-workspace` path
 
 ## Targets and Environment Variables
 
@@ -186,12 +186,12 @@ Each target specifies:
 - name: vscode_projectx
   provider: vscode
   settings:
-    workspace_env_var: "EVAL_PROJECTX_WORKSPACE_PATH"
+    workspace_env: "EVAL_PROJECTX_WORKSPACE_PATH"
 
 - name: vscode_insiders_projectx
   provider: vscode-insiders
   settings:
-    workspace_env_var: "EVAL_PROJECTX_WORKSPACE_PATH"
+    workspace_env: "EVAL_PROJECTX_WORKSPACE_PATH"
 ```
 
 ## Timeout Handling and Retries

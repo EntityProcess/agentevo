@@ -240,7 +240,7 @@ function resolveVSCodeConfig(
   insiders: boolean,
 ): VSCodeResolvedConfig {
   const settings = target.settings ?? {};
-  const workspaceEnvVar = resolveOptionalLiteralString(settings.workspace_env_var);
+  const workspaceEnvVar = resolveOptionalLiteralString(settings.workspace_env);
   const workspacePath = workspaceEnvVar
     ? resolveOptionalString(workspaceEnvVar, env, `${target.name} workspace path`, {
         allowLiteral: false,
