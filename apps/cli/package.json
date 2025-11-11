@@ -12,7 +12,7 @@
     "url": "https://github.com/EntityProcess/agentevo/issues"
   },
   "bin": {
-    "agentevo": "./dist/index.js"
+    "agentevo": "./dist/cli.js"
   },
   "files": [
     "dist",

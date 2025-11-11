@@ -1,6 +1,5 @@
 import { Command } from "commander";
 import { readFileSync } from "node:fs";
-import { pathToFileURL } from "node:url";
 
 import { registerEvalCommand } from "./commands/eval/index.js";
 import { registerStatusCommand } from "./commands/status.js";
@@ -24,10 +23,4 @@ export async function runCli(argv: string[] = process.argv): Promise<Command> {
   return program;
 }
 
-if (process.argv[1]) {
-  const entryUrl = pathToFileURL(process.argv[1]).href;
 
-  if (import.meta.url === entryUrl) {
-    void runCli();
-  }
-}
