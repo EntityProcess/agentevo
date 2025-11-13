@@ -6,7 +6,7 @@
   provider: vscode
   settings:
     # VS Code provider requires a workspace context.
-    workspace_env_var: PROJECTX_WORKSPACE_PATH
+    workspace_env: PROJECTX_WORKSPACE_PATH
   # This key makes the judge model configurable and is good practice
   judge_target: azure_base
 
@@ -14,7 +14,7 @@
   provider: vscode-insiders
   settings:
     # VS Code Insiders provider (preview version) requires a workspace context.
-    workspace_env_var: PROJECTX_WORKSPACE_PATH
+    workspace_env: PROJECTX_WORKSPACE_PATH
   # This key makes the judge model configurable and is good practice
   judge_target: azure_base
 
