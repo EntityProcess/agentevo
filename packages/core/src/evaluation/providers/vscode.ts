@@ -48,6 +48,7 @@ export class VSCodeProvider implements Provider {
         vscodeCmd: this.config.command,
         subagentRoot: this.config.subagentRoot,
         workspaceTemplate: this.config.workspaceTemplate,
+        silent: true,
       });
 
       if (session.exitCode !== 0 || !session.responseFile) {
