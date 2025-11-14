@@ -5,16 +5,16 @@
 - name: vscode_projectx
   provider: vscode
   settings:
-    # VS Code provider requires a workspace context.
-    workspace_env: PROJECTX_WORKSPACE_PATH
+    # VS Code provider requires a workspace template path.
+    workspace_template: PROJECTX_WORKSPACE_PATH
   # This key makes the judge model configurable and is good practice
   judge_target: azure_base
 
 - name: vscode_insiders_projectx
   provider: vscode-insiders
   settings:
-    # VS Code Insiders provider (preview version) requires a workspace context.
-    workspace_env: PROJECTX_WORKSPACE_PATH
+    # VS Code Insiders provider (preview version) requires a workspace template path.
+    workspace_template: PROJECTX_WORKSPACE_PATH
   # This key makes the judge model configurable and is good practice
   judge_target: azure_base
 

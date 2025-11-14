@@ -1,12 +1,10 @@
-export * from "./evaluation/types.js";
-export * from "./evaluation/yaml-parser.js";
-export * from "./evaluation/providers/index.js";
-export * from "./evaluation/scoring.js";
-export * from "./evaluation/grading.js";
-export * from "./evaluation/orchestrator.js";
-
+export * from "./evaluation/types";
+export * from "./evaluation/yaml-parser";
+export * from "./evaluation/providers/index";
+export * from "./evaluation/scoring";
+export * from "./evaluation/grading";
+export * from "./evaluation/orchestrator";
 export type AgentKernel = {
-  status: string;
+    status: string;
 };
-
 export declare function createAgentKernel(): AgentKernel;

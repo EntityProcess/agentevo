@@ -15,7 +15,7 @@ vi.mock("@ax-llm/ax", () => ({
 }));
 
 const providerModule = await import("../../../src/evaluation/providers/index.js");
-const { resolveTargetDefinition, createProvider } = providerModule;
+const { resolveTargetDefinition } = providerModule;
 
 describe("Azure provider request diagnostics", () => {
   const env = {

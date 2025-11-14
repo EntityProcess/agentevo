@@ -1,8 +1,7 @@
+import type { EvaluationResult } from "@agentevo/core";
 import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
-
-import type { EvaluationResult } from "@agentevo/core";
 
 import { createOutputWriter, getDefaultExtension } from "../src/commands/eval/output-writer.js";
 

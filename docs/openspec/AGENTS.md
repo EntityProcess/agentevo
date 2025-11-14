@@ -2,6 +2,8 @@
 
 Instructions for AI coding assistants using OpenSpec for spec-driven development.
 
+- **Important**: Run all `openspec` commands from the same directory as this AGENTS.md file (the `openspec/` parent directory)
+
 ## TL;DR Quick Checklist
 
 - Search existing work: `openspec spec list --long`, `openspec list` (use `rg` only for full-text search)

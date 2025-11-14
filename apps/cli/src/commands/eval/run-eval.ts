@@ -14,7 +14,6 @@ import {
   createOutputWriter,
   getDefaultExtension,
   type OutputFormat,
-  type OutputWriter,
 } from "./output-writer.js";
 import { calculateEvaluationSummary, formatEvaluationSummary } from "./statistics.js";
 import { selectTarget } from "./targets.js";

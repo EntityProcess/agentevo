@@ -82,8 +82,8 @@ importers:
         specifier: ^5.0.50
         version: 5.0.89(zod@3.25.76)
       subagent:
-        specifier: ^0.3.2
-        version: 0.3.2
+        specifier: ^0.3.5
+        version: 0.3.5
       yaml:
         specifier: ^2.6.0
         version: 2.8.1
@@ -2162,8 +2162,8 @@ packages:
   strip-literal@2.1.1:
     resolution: {integrity: sha512-631UJ6O00eNGfMiWG78ck80dfBab8X6IVFB51jZK5Icd7XAs60Z5y7QdSd/wGIklnWvRbUNloVzhOKKmutxQ6Q==}
 
-  subagent@0.3.2:
-    resolution: {integrity: sha512-NoGbdb3CTRs8LXk2z1Y72EXwMtHj/F4xrI7FgRrfiIopojCyA60/0SDWZp89YxEuXnVzoRXcyGrxY1QVJ0J9FA==}
+  subagent@0.3.5:
+    resolution: {integrity: sha512-BXW1QPV/7Fj6KLWtk6Gxg0yYWzxF6m+VWcQeDs/wXQtJbDVhkK2VmQIFOKWd9iJk2lMHylFeVJ027n3U2GOsdg==}
     engines: {node: '>=20.0.0'}
     hasBin: true
 
@@ -4569,7 +4569,7 @@ snapshots:
     dependencies:
       js-tokens: 9.0.1
 
-  subagent@0.3.2:
+  subagent@0.3.5:
     dependencies:
       commander: 12.1.0
       json5: 2.2.3

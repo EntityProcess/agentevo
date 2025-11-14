@@ -47,6 +47,7 @@ export class VSCodeProvider implements Provider {
         dryRun: this.config.dryRun,
         vscodeCmd: this.config.command,
         subagentRoot: this.config.subagentRoot,
+        workspaceTemplate: this.config.workspaceTemplate,
       });
 
       if (session.exitCode !== 0 || !session.responseFile) {

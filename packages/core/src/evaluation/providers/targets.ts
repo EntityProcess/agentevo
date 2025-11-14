@@ -35,8 +35,7 @@ export interface VSCodeResolvedConfig {
   readonly waitForResponse: boolean;
   readonly dryRun: boolean;
   readonly subagentRoot?: string;
-  readonly workspaceEnvVar?: string;
-  readonly workspacePath?: string;
+  readonly workspaceTemplate?: string;
 }
 
 export type ResolvedTarget =
@@ -240,9 +239,9 @@ function resolveVSCodeConfig(
   insiders: boolean,
 ): VSCodeResolvedConfig {
   const settings = target.settings ?? {};
-  const workspaceEnvVar = resolveOptionalLiteralString(settings.workspace_env);
-  const workspacePath = workspaceEnvVar
-    ? resolveOptionalString(workspaceEnvVar, env, `${target.name} workspace path`, {
+  const workspaceTemplateEnvVar = resolveOptionalLiteralString(settings.workspace_template ?? settings.workspaceTemplate);
+  const workspaceTemplate = workspaceTemplateEnvVar
+    ? resolveOptionalString(workspaceTemplateEnvVar, env, `${target.name} workspace template path`, {
         allowLiteral: false,
         optionalEnv: true,
       })
@@ -264,8 +263,7 @@ function resolveVSCodeConfig(
       allowLiteral: true,
       optionalEnv: true,
     }),
-    workspaceEnvVar,
-    workspacePath,
+    workspaceTemplate,
   };
 }
 

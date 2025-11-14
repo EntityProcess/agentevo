@@ -165,7 +165,7 @@ export async function selectTarget(options: TargetSelectionOptions): Promise<Tar
   const fileTargetName = await readTestSuiteTarget(testFilePath);
   const targetChoice = pickTargetName({ cliTargetName, fileTargetName });
 
-  const targetDefinition = definitions.find((definition) => definition.name === targetChoice.name);
+  const targetDefinition = definitions.find((definition: TargetDefinition) => definition.name === targetChoice.name);
   if (!targetDefinition) {
     const available = listTargetNames(definitions).join(", ");
     throw new Error(

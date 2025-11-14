@@ -1,9 +1,8 @@
+import type { EvaluationResult } from "@agentevo/core";
 import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { parse as parseYaml, parseAllDocuments } from "yaml";
-
-import type { EvaluationResult } from "@agentevo/core";
 
 import { YamlWriter } from "../src/commands/eval/yaml-writer.js";
 

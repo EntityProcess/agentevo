@@ -103,7 +103,11 @@ describe("resolveTargetDefinition", () => {
     ).toThrow(/AZURE_OPENAI_API_KEY/i);
   });
 
-  it("supports vscode configuration with optional workspace", () => {
+  it("supports vscode configuration with optional workspace template from env var", () => {
+    const env = {
+      WORKSPACE_TEMPLATE_PATH: "/path/to/workspace.code-workspace",
+    } satisfies Record<string, string>;
+
     const target = resolveTargetDefinition(
       {
         name: "editor",
@@ -112,9 +116,10 @@ describe("resolveTargetDefinition", () => {
           vscode_cmd: "code-insiders",
           wait: false,
           dry_run: true,
+          workspace_template: "WORKSPACE_TEMPLATE_PATH",
         },
       },
-      {},
+      env,
     );
 
     expect(target.kind).toBe("vscode");
@@ -125,6 +130,7 @@ describe("resolveTargetDefinition", () => {
     expect(target.config.command).toBe("code-insiders");
     expect(target.config.waitForResponse).toBe(false);
     expect(target.config.dryRun).toBe(true);
+    expect(target.config.workspaceTemplate).toBe("/path/to/workspace.code-workspace");
   });
 
   it("resolves gemini settings from environment with default model", () => {
