@@ -8,5 +8,5 @@ coverage/
 *.tsbuildinfo
 *.tsbuildinfo.*
 .DS_Store
-.bbeval/
+.agentevo/
 .env

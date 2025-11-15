@@ -51,8 +51,8 @@ type LoadOptions = {
 };
 
 type RawTestSuite = JsonObject & {
+  readonly version?: JsonValue;
   readonly grader?: JsonValue;
-  readonly testcases?: JsonValue;
   readonly evalcases?: JsonValue;
   readonly target?: JsonValue;
 };
@@ -61,7 +61,6 @@ type RawTestCase = JsonObject & {
   readonly id?: JsonValue;
   readonly conversation_id?: JsonValue;
   readonly outcome?: JsonValue;
-  readonly messages?: JsonValue;
   readonly input_messages?: JsonValue;
   readonly expected_messages?: JsonValue;
   readonly grader?: JsonValue;
@@ -92,14 +91,34 @@ export async function loadTestCases(
   }
 
   const suite = parsed as RawTestSuite;
-  // Support both V2 (evalcases) and V1 (testcases) for now
-  const rawTestcases = Array.isArray(suite.evalcases) 
-    ? suite.evalcases 
-    : Array.isArray(suite.testcases) 
-    ? suite.testcases 
-    : undefined;
-  if (!rawTestcases) {
-    throw new Error(`Invalid test file format: ${testFilePath} - missing 'evalcases' or 'testcases' field`);
+  
+  // Check version field to determine schema format
+  const version = typeof suite.version === 'number' ? suite.version : 
+                  typeof suite.version === 'string' ? parseFloat(suite.version) : 
+                  undefined;
+  
+  // Require V2 format (version 2.0 or higher)
+  if (version === undefined) {
+    throw new Error(
+      `Missing version field in ${testFilePath}.\n` +
+      `Please add 'version: 2.0' at the top of the file.`
+    );
+  }
+  
+  if (version < 2.0) {
+    throw new Error(
+      `V1 eval format detected in ${testFilePath} (version ${version}).\n` +
+      `The eval schema has been updated to V2. Please migrate your file:\n` +
+      `  1. Update to 'version: 2.0'\n` +
+      `  2. Rename 'testcases' to 'evalcases'\n` +
+      `  3. Split 'messages' into 'input_messages' and 'expected_messages'`
+    );
+  }
+  
+  // V2 format: version 2.0 or higher
+  const rawTestcases = suite.evalcases;
+  if (!Array.isArray(rawTestcases)) {
+    throw new Error(`Invalid test file format: ${testFilePath} - missing 'evalcases' field`);
   }
 
   const globalGrader = coerceGrader(suite.grader) ?? "llm_judge";
@@ -116,31 +135,24 @@ export async function loadTestCases(
     const conversationId = asString(testcase.conversation_id);
     const outcome = asString(testcase.outcome);
     
-    // Support both V2 (input_messages + expected_messages) and V1 (messages)
-    const inputMessagesValue = Array.isArray(testcase.input_messages) 
-      ? testcase.input_messages 
-      : Array.isArray(testcase.messages) 
-      ? testcase.messages 
-      : undefined;
-    const expectedMessagesValue = Array.isArray(testcase.expected_messages) 
-      ? testcase.expected_messages 
-      : [];
+    const inputMessagesValue = testcase.input_messages;
+    const expectedMessagesValue = testcase.expected_messages;
 
-    if (!id || !outcome || !inputMessagesValue) {
+    if (!id || !outcome || !Array.isArray(inputMessagesValue)) {
       logWarning(`Skipping incomplete test case: ${id ?? "unknown"}`);
       continue;
     }
+    
+    if (!Array.isArray(expectedMessagesValue)) {
+      logWarning(`Test case '${id}' missing expected_messages array`);
+      continue;
+    }
 
-    // In V2 format: input_messages contains system/user, expected_messages contains assistant
-    // In V1 format: messages contains all roles including assistant
+    // V2 format: input_messages contains system/user, expected_messages contains assistant
     const inputMessages = inputMessagesValue.filter((msg): msg is TestMessage => isTestMessage(msg));
     const expectedMessages = expectedMessagesValue.filter((msg): msg is TestMessage => isTestMessage(msg));
     
-    // For V1 compatibility: extract assistant messages from inputMessages if no expectedMessages
-    const assistantMessages = expectedMessages.length > 0 
-      ? expectedMessages.filter((message) => message.role === "assistant")
-      : inputMessages.filter((message) => message.role === "assistant");
-    
+    const assistantMessages = expectedMessages.filter((message) => message.role === "assistant");
     const userMessages = inputMessages.filter((message) => message.role === "user");
 
     if (assistantMessages.length === 0) {

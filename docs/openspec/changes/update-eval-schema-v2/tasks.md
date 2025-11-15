@@ -10,8 +10,8 @@
 
 ## 2. Schema Parser Updates
 
-- [x] 2.1 Replace V1 parser with V2-only implementation (MVP: supports both V1 and V2 with fallback)
-- [ ] 2.2 Detect and reject V1 format (error if `testcases` found with migration guidance)
+- [x] 2.1 Replace V1 parser with V2-only implementation
+- [x] 2.2 Detect and reject V1 format (error if `testcases` found with migration guidance)
 - [x] 2.3 Parse `evalcases` structure (error if neither `evalcases` nor `testcases` found)
 - [x] 2.4 Parse `conversation_id` field (default to eval case id)
 - [ ] 2.5 Parse `execution` block (target, evaluators array)
@@ -43,7 +43,7 @@
 
 - [ ] 5.1 Update help text with V2 schema examples
 - [ ] 5.2 Add validation for V2-specific features
-- [ ] 5.3 Ensure clear error messages when V1 format detected
+- [x] 5.3 Ensure clear error messages when V1 format detected
 
 ## 6. Documentation & Examples
 
@@ -60,11 +60,11 @@
 - [ ] 7.3.2 Add test for different evaluator types (llm_judge, code)
 - [ ] 7.3.3 Add test for evaluator name uniqueness validation
 - [x] 7.4 Validate example-v2.test.yaml executes successfully (verified with manual test)
-- [ ] 7.5 Add error test for V1 format (should fail with clear message)
+- [x] 7.5 Add error test for V1 format (should fail with clear message)
 
 ## 8. Validation & Deployment
 
 - [ ] 8.1 Run `openspec validate update-eval-schema-v2 --strict`
 - [ ] 8.2 Run full test suite
-- [ ] 8.3 Verify clear error message when V1 format detected
+- [x] 8.3 Verify clear error message when V1 format detected
 - [ ] 8.4 Create release notes documenting breaking changes

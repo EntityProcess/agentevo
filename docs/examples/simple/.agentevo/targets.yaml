@@ -1,37 +1,40 @@
+version: 2.0
+
 # A list of all supported evaluation targets for the project.
 # Each target defines a provider and its specific configuration.
 # Actual values for paths/keys are stored in the local .env file.
 
-- name: vscode_projectx
-  provider: vscode
-  settings:
-    # VS Code provider requires a workspace template path.
-    workspace_template: PROJECTX_WORKSPACE_PATH
-  # This key makes the judge model configurable and is good practice
-  judge_target: azure_base
+targets:
+  - name: vscode_projectx
+    provider: vscode
+    settings:
+      # VS Code provider requires a workspace template path.
+      workspace_template: PROJECTX_WORKSPACE_PATH
+    # This key makes the judge model configurable and is good practice
+    judge_target: azure_base
 
-- name: vscode_insiders_projectx
-  provider: vscode-insiders
-  settings:
-    # VS Code Insiders provider (preview version) requires a workspace template path.
-    workspace_template: PROJECTX_WORKSPACE_PATH
-  # This key makes the judge model configurable and is good practice
-  judge_target: azure_base
+  - name: vscode_insiders_projectx
+    provider: vscode-insiders
+    settings:
+      # VS Code Insiders provider (preview version) requires a workspace template path.
+      workspace_template: PROJECTX_WORKSPACE_PATH
+    # This key makes the judge model configurable and is good practice
+    judge_target: azure_base
 
-- name: azure_base
-  provider: azure
-  # The base LLM provider needs no extra settings, as the model is
-  # defined in the .env file.
-  settings:
-    endpoint: AZURE_OPENAI_ENDPOINT
-    api_key: AZURE_OPENAI_API_KEY
-    model: AZURE_DEPLOYMENT_NAME
+  - name: azure_base
+    provider: azure
+    # The base LLM provider needs no extra settings, as the model is
+    # defined in the .env file.
+    settings:
+      endpoint: AZURE_OPENAI_ENDPOINT
+      api_key: AZURE_OPENAI_API_KEY
+      model: AZURE_DEPLOYMENT_NAME
 
-- name: default
-  provider: azure
-  # The base LLM provider needs no extra settings, as the model is
-  # defined in the .env file.
-  settings:
-    endpoint: AZURE_OPENAI_ENDPOINT
-    api_key: AZURE_OPENAI_API_KEY
-    model: AZURE_DEPLOYMENT_NAME
+  - name: default
+    provider: azure
+    # The base LLM provider needs no extra settings, as the model is
+    # defined in the .env file.
+    settings:
+      endpoint: AZURE_OPENAI_ENDPOINT
+      api_key: AZURE_OPENAI_API_KEY
+      model: AZURE_DEPLOYMENT_NAME
