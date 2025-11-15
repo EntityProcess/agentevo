@@ -8,7 +8,7 @@ This directory demonstrates AgentEvo's V2 eval schema with complete, working exa
 simple/
 ├── evals/                          # Evaluation test cases
 │   ├── example-eval.yaml        # Main V2 schema example
-│   └── *.test.yaml                 # Additional eval files
+│   └── *.yaml                 # Additional eval files
 ├── evaluators/                     # Evaluator components
 │   ├── prompts/                    # LLM judge prompt templates
 │   │   ├── code-correctness-judge.md    # Semantic code evaluation
