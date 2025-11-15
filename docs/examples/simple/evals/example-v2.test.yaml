@@ -1,0 +1,150 @@
+# AgentEvo V2 Eval Schema Example
+# Demonstrates all V2 schema features with real file references and minimal redundancy
+
+description: V2 schema example showing basic features, conversation threading, multiple evaluators, and ACE optimization
+
+# File-level default target (optional)
+# Can be overridden per eval case via execution.target
+target: azure_base
+
+# V2 Schema: Use 'evalcases' instead of 'testcases' (V1)
+evalcases:
+  # ==========================================
+  # Example 1: Basic V2 features with file references
+  # Demonstrates: input_messages, expected_messages, file references, array content format
+  # ==========================================
+  - id: code-review-javascript
+    
+    outcome: |
+      Assistant provides helpful code analysis and mentions SUPERSECRET_INSTRUCTION_MARKER_JAVASCRIPT
+    
+    # V2 Schema: Use 'input_messages' instead of 'messages' (V1)
+    input_messages:
+      - role: system
+        content: You are an expert software developer who provides clear, concise code reviews.
+      - role: user
+        content:
+          # Content can be a string or an array of content blocks
+          # Array format supports mixed text and file references
+          - type: text
+            value: |-
+              Please review this JavaScript function:
+              
+              ```javascript
+              function calculateTotal(items) {
+                let total = 0;
+                for (let i = 0; i < 0; i++) {
+                  total += items[i].price * items[i].quantity;
+                }
+                return total;
+              }
+              ```
+          # File references are resolved relative to the eval file directory
+          # Files ending in .instructions.md are treated as guidelines
+          - type: file
+            value: ../prompts/javascript.instructions.md
+    
+    # V2 Schema: Use 'expected_messages' instead of inline assistant message in V1
+    expected_messages:
+      - role: assistant
+        content: |-
+          The function has a critical bug in the loop condition. Here's my analysis (SUPERSECRET_INSTRUCTION_MARKER_JAVASCRIPT):
+          
+          **Critical Issue:**
+          - Loop condition `i < 0` means the loop never executes (should be `i < items.length`)
+          
+          **Suggestions:**
+          - Fix the loop: `for (let i = 0; i < items.length; i++)`
+          - Consider using `reduce()` for a more functional approach
+          - Add input validation for edge cases
+
+  # ==========================================
+  # Example 2: Advanced features - conversation_id, multiple evaluators, ACE optimization
+  # Demonstrates: conversation threading, execution config, target override, evaluators, optimization
+  # ==========================================
+  - id: code-gen-python-comprehensive
+    
+    # conversation_id groups related eval cases for analytics and optimization
+    conversation_id: python-code-generation
+    
+    outcome: |
+      AI generates correct Python function with proper error handling, type hints, and mentions SUPERSECRET_INSTRUCTION_MARKER_PYTHON
+    
+    # V2 Schema: Execution block for per-case configuration
+    execution:
+      # Override file-level target for this specific eval case
+      target: default_internal
+      
+      # Multiple evaluators - supports both code-based and LLM judges
+      evaluators:
+        - name: keyword_check
+          type: code  # Code evaluators handle regex, keywords, linting, etc.
+          # Note: script paths shown here are examples - implement as needed
+          script: ./scripts/check_python_keywords.py
+        - name: semantic_correctness
+          type: llm_judge  # LLM-based semantic evaluation
+          prompt: ./templates/code-correctness-judge.md
+          model: gpt-5-chat
+      
+      # V2 Schema: ACE (Automatic Cognitive Enhancement) optimization configuration
+      # Optional - only include when using prompt optimization
+      optimization:
+        type: ace  # Optimization framework type (currently only 'ace' supported)
+        playbook_path: ./playbooks/python-code.json  # ACE playbook configuration
+        max_epochs: 2  # Number of optimization iterations across ALL test cases
+        max_reflector_rounds: 2  # Number of analysis rounds per failed test case
+        allow_dynamic_sections: true  # Allow ACE to create new prompt sections
+    
+    input_messages:
+      - role: system
+        content: You are a code generator that follows specifications exactly.
+      - role: user
+        content:
+          - type: text
+            value: |-
+              Create a Python function that:
+              1. Takes a list of integers
+              2. Returns the second largest number
+              3. Handles edge cases (empty list, single item, duplicates)
+              4. Raises appropriate exceptions for invalid input
+          # Reference to real instruction file
+          - type: file
+            value: ../prompts/python.instructions.md
+    
+    expected_messages:
+      - role: assistant
+        content: |-
+          ```python
+          from typing import List, Union
+          
+          def find_second_largest(numbers: List[int]) -> Union[int, None]:
+              """
+              Find the second largest number in a list of integers.
+              
+              Args:
+                  numbers: List of integers to search
+                  
+              Returns:
+                  The second largest unique number, or None if not available
+                  
+              Raises:
+                  TypeError: If input is not a list or contains non-integers
+                  ValueError: If list is empty
+              """
+              if not isinstance(numbers, list):
+                  raise TypeError("Input must be a list")
+              
+              if not numbers:
+                  raise ValueError("List cannot be empty")
+              
+              if not all(isinstance(x, int) for x in numbers):
+                  raise TypeError("All elements must be integers")
+              
+              unique_numbers = list(set(numbers))
+              
+              if len(unique_numbers) < 2:
+                  return None
+              
+              unique_numbers.sort(reverse=True)
+              return unique_numbers[1]
+          ```
