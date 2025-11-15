@@ -7,7 +7,7 @@ This directory demonstrates AgentEvo's V2 eval schema with complete, working exa
 ```
 simple/
 ├── evals/                          # Evaluation test cases
-│   ├── example-v2.test.yaml        # Main V2 schema example
+│   ├── example-eval.yaml        # Main V2 schema example
 │   └── *.test.yaml                 # Additional eval files
 ├── evaluators/                     # Evaluator components
 │   ├── prompts/                    # LLM judge prompt templates
@@ -29,7 +29,7 @@ simple/
 
 ### Evaluation Files (`evals/`)
 
-- **`example-v2.test.yaml`**: Complete V2 schema demonstration showing:
+- **`example-eval.yaml`**: Complete V2 schema demonstration showing:
   - Basic features: `input_messages`, `expected_messages`
   - File references and content blocks
   - Conversation threading with `conversation_id`
@@ -71,10 +71,10 @@ simple/
 agentevo eval evals/
 
 # Run specific eval file
-agentevo eval evals/example-v2.test.yaml
+agentevo eval evals/example-eval.yaml
 
 # Run with specific target
-agentevo eval evals/example-v2.test.yaml --target azure_base
+agentevo eval evals/example-eval.yaml --target azure_base
 ```
 
 ### With Optimization (Future)
@@ -255,7 +255,7 @@ Key changes when updating existing eval files:
 
 ## Next Steps
 
-- Review `example-v2.test.yaml` to understand the schema
+- Review `example-eval.yaml` to understand the schema
 - Create your own eval cases following the V2 format
 - Write custom evaluator scripts for domain-specific validation
 - Create LLM judge templates for semantic evaluation

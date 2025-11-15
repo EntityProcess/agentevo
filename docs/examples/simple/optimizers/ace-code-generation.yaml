@@ -9,7 +9,7 @@ type: ace
 # Eval files to use for optimization
 # ACE will run these evals to measure prompt performance and guide improvements
 eval_files:
-  - ../evals/example-v2.test.yaml
+  - ../evals/example-eval.yaml
   # - ../evals/code-generation-edge-cases.test.yaml
   # - ../evals/code-review-security.test.yaml
 

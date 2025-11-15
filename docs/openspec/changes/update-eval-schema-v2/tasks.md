@@ -6,7 +6,7 @@
 - [ ] 1.2 Define `ExecutionConfig` type with `target`, `evaluators`, `optimization`
 - [ ] 1.3 Define `EvaluatorConfig` type with `name`, `type`, `prompt`, `model`, `script`
 - [ ] 1.4 Define `OptimizationConfig` type with ACE parameters
-- [ ] 1.5 Remove legacy `TestCase` type and V1 schema support
+- [x] 1.5 Remove legacy `TestCase` type and V1 schema support
 
 ## 2. Schema Parser Updates
 
@@ -59,7 +59,7 @@
 - [ ] 7.3.1 Add multiple evaluators execution tests
 - [ ] 7.3.2 Add test for different evaluator types (llm_judge, code)
 - [ ] 7.3.3 Add test for evaluator name uniqueness validation
-- [x] 7.4 Validate example-v2.test.yaml executes successfully (verified with manual test)
+- [x] 7.4 Validate example-eval.yaml executes successfully (verified with manual test)
 - [x] 7.5 Add error test for V1 format (should fail with clear message)
 
 ## 8. Validation & Deployment

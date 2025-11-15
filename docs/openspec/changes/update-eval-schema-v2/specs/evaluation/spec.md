@@ -2,7 +2,7 @@
 
 ### Requirement: V2 Schema Format
 
-The system SHALL support the V2 eval schema format as documented in `docs/examples/simple/evals/example-v2.test.yaml`.
+The system SHALL support the V2 eval schema format as documented in `docs/examples/simple/evals/example-eval.yaml`.
 
 #### Scenario: Parse V2 schema with all features
 
@@ -19,7 +19,7 @@ The system SHALL support the V2 eval schema format as documented in `docs/exampl
 
 #### Scenario: V2 example file executes successfully
 
-- **WHEN** the system runs `docs/examples/simple/evals/example-v2.test.yaml`
+- **WHEN** the system runs `docs/examples/simple/evals/example-eval.yaml`
 - **THEN** all four example eval cases execute without errors
 - **AND** demonstrates simple eval, multi-turn conversation, ACE optimization, and code-based evaluation
 - **AND** produces valid results in the specified output format
@@ -187,7 +187,7 @@ The system SHALL successfully execute the bundled V2 example evaluation file to 
 
 #### Scenario: Execute V2 example demonstrating all features
 
-- **WHEN** the system runs `docs/examples/simple/evals/example-v2.test.yaml` (V2 format)
+- **WHEN** the system runs `docs/examples/simple/evals/example-eval.yaml` (V2 format)
 - **THEN** all eval cases execute successfully as documented in the example file
 - **AND** demonstrates all V2 features with inline YAML comments explaining each capability
 

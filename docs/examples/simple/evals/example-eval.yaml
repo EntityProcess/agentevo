@@ -6,7 +6,7 @@ description: V2 schema example showing basic features, conversation threading, m
 
 # File-level default target (optional)
 # Can be overridden per eval case via execution.target
-target: azure_base
+target: default
 
 # V2 Schema: Use 'evalcases' instead of 'testcases' (V1)
 evalcases:
@@ -76,7 +76,7 @@ evalcases:
     # V2 Schema: Execution block for per-case configuration
     execution:
       # Override file-level target for this specific eval case
-      target: default_internal
+      target: azure_base
       
       # Multiple evaluators - supports both code-based and LLM judges
       evaluators:
