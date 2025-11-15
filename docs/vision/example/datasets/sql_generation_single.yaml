@@ -1,11 +1,14 @@
 description: On-call incident triage scenario adapted to AgentEvo’s BbEval-compatible single-case YAML format.
 evalcases:
   - id: incident-triage-playbook
-    conversationId: checkout-incident-2024-08-17
+    conversation_id: checkout-incident-2024-08-17
     checkpoint: final-response
     execution:
       target: default_internal
-      grader: llm_judge
+      evaluator:
+        type: llm_judge
+        template: ./templates/incident-triage-judge.md
+        model: gpt-5-chat
     input:
       messages:
         - role: system
@@ -24,13 +27,11 @@ evalcases:
             - type: file
               value: ../.agentevo/instructions/incident-triage.md
     expected:
-      outcome:
-        description: Assistant proposes actionable steps and references the runbook marker INCIDENT_RUNBOOK_V1
-        rubric:
-          aspects:
-            - Notes the 09:26 UTC regression window and links it to the recent deploy
-            - Mentions collecting pod-level logs and latency traces before rollback
-            - References INCIDENT_RUNBOOK_V1 and suggests notifying the incident commander
+      outcome: |
+        Assistant proposes actionable steps and references the runbook marker INCIDENT_RUNBOOK_V1
+        - Notes the 09:26 UTC regression window and links it to the recent deploy
+        - Mentions collecting pod-level logs and latency traces before rollback
+        - References INCIDENT_RUNBOOK_V1 and suggests notifying the incident commander
       messages:
         - role: assistant
           content:
