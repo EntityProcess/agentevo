@@ -135,7 +135,7 @@ evalcases:
     # ...
 ```
 
-Groups related eval cases for analytics and optimization.
+The `conversation_id` represents the full conversation that may be split into multiple eval cases. Most commonly, eval cases test the final response (e.g., `id: final-response`), but can also test intermediate conversation turns. This enables analytics and optimization at the conversation level.
 
 ### 4. File References
 

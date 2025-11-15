@@ -132,10 +132,13 @@ expected_messages:  # Expected output messages
 
 ### Decision 4: Conversation ID for Grouping
 
-**Rationale**: Enables grouping related eval cases (e.g., variations of same scenario, multi-step workflows). Useful for:
+**Rationale**: The `conversation_id` represents the full conversation that may be split into multiple eval cases. This enables:
+- Testing different turns within the same conversation (e.g., intermediate responses vs final response)
 - Analytics (aggregate scores by conversation)
-- Optimization (treat related cases as cohort)
+- Optimization (treat conversation-level performance as a cohort)
 - Reporting (group results in UI)
+
+Most commonly, eval cases test the final response (e.g., `id: final-response`), but conversations with multiple important decision points may have eval cases for intermediate turns.
 
 **Usage**:
 ```yaml
@@ -143,7 +146,7 @@ evalcases:
   - id: incident-triage-step-1
     conversation_id: incident-triage-playbook
     ...
-  - id: incident-triage-step-2
+  - id: incident-triage-playbook-final  # Most common: test the final output
     conversation_id: incident-triage-playbook
     ...
 ```

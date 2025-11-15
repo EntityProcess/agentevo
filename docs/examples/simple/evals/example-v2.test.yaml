@@ -65,7 +65,8 @@ evalcases:
   # ==========================================
   - id: code-gen-python-comprehensive
     
-    # conversation_id groups related eval cases for analytics and optimization
+    # conversation_id represents the full conversation that may be split into multiple eval cases
+    # Most commonly, eval cases test the final response, but could also test intermediate turns
     conversation_id: python-code-generation
     
     outcome: |
