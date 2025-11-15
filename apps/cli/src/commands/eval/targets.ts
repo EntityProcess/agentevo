@@ -131,6 +131,9 @@ export interface TargetSelectionOptions {
   readonly explicitTargetsPath?: string;
   readonly cliTargetName?: string;
   readonly dryRun: boolean;
+  readonly dryRunDelay: number;
+  readonly dryRunDelayMin: number;
+  readonly dryRunDelayMax: number;
   readonly env: NodeJS.ProcessEnv;
 }
 
@@ -152,7 +155,7 @@ function pickTargetName(options: {
 }
 
 export async function selectTarget(options: TargetSelectionOptions): Promise<TargetSelection> {
-  const { testFilePath, repoRoot, cwd, explicitTargetsPath, cliTargetName, dryRun, env } = options;
+  const { testFilePath, repoRoot, cwd, explicitTargetsPath, cliTargetName, dryRun, dryRunDelay, dryRunDelayMin, dryRunDelayMax, env } = options;
 
   const targetsFilePath = await discoverTargetsFile({
     explicitPath: explicitTargetsPath,
@@ -178,7 +181,12 @@ export async function selectTarget(options: TargetSelectionOptions): Promise<Tar
       kind: "mock",
       name: `${targetDefinition.name}-dry-run`,
       judgeTarget: undefined,
-      config: { response: "{\"answer\":\"Mock dry-run response\"}" },
+      config: { 
+        response: "{\"answer\":\"Mock dry-run response\"}",
+        delayMs: dryRunDelay,
+        delayMinMs: dryRunDelayMin,
+        delayMaxMs: dryRunDelayMax,
+      },
     };
 
     return {

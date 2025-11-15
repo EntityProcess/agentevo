@@ -32,6 +32,9 @@ interface NormalizedOptions {
   readonly outPath?: string;
   readonly format: OutputFormat;
   readonly dryRun: boolean;
+  readonly dryRunDelay: number;
+  readonly dryRunDelayMin: number;
+  readonly dryRunDelayMax: number;
   readonly agentTimeoutSeconds: number;
   readonly maxRetries: number;
   readonly cache: boolean;
@@ -78,6 +81,9 @@ function normalizeOptions(rawOptions: Record<string, unknown>): NormalizedOption
     outPath: normalizeString(rawOptions.out),
     format,
     dryRun: normalizeBoolean(rawOptions.dryRun),
+    dryRunDelay: normalizeNumber(rawOptions.dryRunDelay, 0),
+    dryRunDelayMin: normalizeNumber(rawOptions.dryRunDelayMin, 0),
+    dryRunDelayMax: normalizeNumber(rawOptions.dryRunDelayMax, 0),
     agentTimeoutSeconds: normalizeNumber(rawOptions.agentTimeout, 120),
     maxRetries: normalizeNumber(rawOptions.maxRetries, 2),
     cache: normalizeBoolean(rawOptions.cache),
@@ -172,6 +178,9 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     explicitTargetsPath: options.targetsPath,
     cliTargetName: options.target,
     dryRun: options.dryRun,
+    dryRunDelay: options.dryRunDelay,
+    dryRunDelayMin: options.dryRunDelayMin,
+    dryRunDelayMax: options.dryRunDelayMax,
     env: process.env,
   });
 
@@ -223,6 +232,9 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
 
   // Initialize progress display for parallel execution
   const progressDisplay = resolvedWorkers > 1 ? new ProgressDisplay(resolvedWorkers) : undefined;
+  if (progressDisplay) {
+    progressDisplay.start();
+  }
   const pendingTests = new Set<number>();
 
   try {

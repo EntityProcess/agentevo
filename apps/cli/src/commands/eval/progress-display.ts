@@ -1,4 +1,4 @@
-import { WriteStream } from "node:tty";
+import logUpdate from "log-update";
 
 export interface WorkerProgress {
   workerId: number;
@@ -11,18 +11,22 @@ export interface WorkerProgress {
 
 export class ProgressDisplay {
   private readonly workers: Map<number, WorkerProgress> = new Map();
-  private readonly stream: NodeJS.WriteStream & { isTTY?: boolean };
   private readonly maxWorkers: number;
   private totalTests = 0;
   private completedTests = 0;
   private renderTimer?: NodeJS.Timeout;
-  private lastRenderLines = 0;
   private isInteractive: boolean;
 
-  constructor(maxWorkers: number, stream: NodeJS.WriteStream & { isTTY?: boolean } = process.stderr) {
+  constructor(maxWorkers: number) {
     this.maxWorkers = maxWorkers;
-    this.stream = stream;
-    this.isInteractive = !!stream.isTTY && !process.env.CI;
+    this.isInteractive = process.stderr.isTTY && !process.env.CI;
+  }
+
+  start(): void {
+    if (this.isInteractive) {
+      // Print initial empty line for visual separation
+      console.log("");
+    }
   }
 
   setTotalTests(count: number): void {
@@ -41,9 +45,9 @@ export class ProgressDisplay {
     } else {
       // In non-interactive mode, just print completion events
       if (progress.status === "completed") {
-        this.stream.write(`✓ Test ${progress.testId} completed\n`);
+        console.log(`✓ Test ${progress.testId} completed`);
       } else if (progress.status === "failed") {
-        this.stream.write(`✗ Test ${progress.testId} failed${progress.error ? `: ${progress.error}` : ""}\n`);
+        console.log(`✗ Test ${progress.testId} failed${progress.error ? `: ${progress.error}` : ""}`);
       }
     }
   }
@@ -63,16 +67,17 @@ export class ProgressDisplay {
       return;
     }
 
-    // Clear previous render
-    if (this.lastRenderLines > 0) {
-      this.clearLines(this.lastRenderLines);
-    }
-
     const lines: string[] = [];
+    
+    // Empty line above progress display
+    //lines.push("");
     
     // Header with overall progress
     const progressBar = this.buildProgressBar(this.completedTests, this.totalTests);
-    lines.push(`\n${progressBar} ${this.completedTests}/${this.totalTests} tests`);
+    lines.push(`${progressBar} ${this.completedTests}/${this.totalTests} tests`);
+    
+    // Empty line between progress and workers
+    lines.push("");
 
     // Worker status lines
     const sortedWorkers = Array.from(this.workers.values()).sort((a, b) => a.workerId - b.workerId);
@@ -81,9 +86,8 @@ export class ProgressDisplay {
       lines.push(line);
     }
 
-    const output = lines.join("\n");
-    this.stream.write(output);
-    this.lastRenderLines = lines.length;
+    // Use log-update to handle all cursor positioning
+    logUpdate(lines.join("\n"));
   }
 
   private formatWorkerLine(worker: WorkerProgress): string {
@@ -139,22 +143,6 @@ export class ProgressDisplay {
     return `[${bar}] ${percentage}%`;
   }
 
-  private clearLines(count: number): void {
-    if (!this.isInteractive) {
-      return;
-    }
-    
-    const tty = this.stream as WriteStream;
-    if (!tty.moveCursor || !tty.clearLine) {
-      return;
-    }
-    
-    for (let i = 0; i < count; i++) {
-      tty.moveCursor(0, -1); // Move up one line
-      tty.clearLine(0); // Clear the line
-    }
-  }
-
   finish(): void {
     if (this.renderTimer) {
       clearTimeout(this.renderTimer);
@@ -163,14 +151,13 @@ export class ProgressDisplay {
 
     if (this.isInteractive) {
       this.render();
-      this.stream.write("\n");
+      logUpdate.done(); // Persist the final output
     }
   }
 
   clear(): void {
-    if (this.isInteractive && this.lastRenderLines > 0) {
-      this.clearLines(this.lastRenderLines);
-      this.lastRenderLines = 0;
+    if (this.isInteractive) {
+      logUpdate.clear();
     }
   }
 }

@@ -28,6 +28,9 @@ export interface GeminiResolvedConfig {
 
 export interface MockResolvedConfig {
   readonly response?: string;
+  readonly delayMs?: number;
+  readonly delayMinMs?: number;
+  readonly delayMaxMs?: number;
 }
 
 export interface VSCodeResolvedConfig {
