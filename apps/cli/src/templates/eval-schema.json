@@ -1,0 +1,182 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AgentEvo Eval Schema",
+  "description": "Schema for YAML evaluation files with conversation flows, multiple evaluators, and execution configuration",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Schema version",
+      "enum": ["2.0"]
+    },
+    "description": {
+      "type": "string",
+      "description": "Description of what this eval suite covers"
+    },
+    "target": {
+      "type": "string",
+      "description": "Default target configuration name (e.g., default, azure_base, vscode_projectx). Can be overridden per eval case."
+    },
+    "evalcases": {
+      "type": "array",
+      "description": "Array of evaluation cases",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the eval case"
+          },
+          "conversation_id": {
+            "type": "string",
+            "description": "Optional conversation identifier for threading multiple eval cases together"
+          },
+          "outcome": {
+            "type": "string",
+            "description": "Description of what the AI should accomplish in this eval"
+          },
+          "note": {
+            "type": "string",
+            "description": "Optional note or additional context for the eval case. Use this to document test-specific considerations, known limitations, or rationale for expected behavior."
+          },
+          "input_messages": {
+            "type": "array",
+            "description": "Input messages for the conversation",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "enum": ["system", "user", "assistant", "tool"],
+                  "description": "Message role"
+                },
+                "content": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "description": "Simple text content"
+                    },
+                    {
+                      "type": "array",
+                      "description": "Mixed content items (text and file references)",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["text", "file"],
+                            "description": "Content type: 'text' for inline content, 'file' for file references"
+                          },
+                          "value": {
+                            "type": "string",
+                            "description": "Text content or file path. Relative paths (e.g., ../prompts/file.md) are resolved from eval file directory. Absolute paths (e.g., /docs/examples/prompts/file.md) are resolved from repo root."
+                          }
+                        },
+                        "required": ["type", "value"],
+                        "additionalProperties": false
+                      }
+                    }
+                  ]
+                }
+              },
+              "required": ["role", "content"],
+              "additionalProperties": false
+            }
+          },
+          "expected_messages": {
+            "type": "array",
+            "description": "Expected response messages",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "enum": ["system", "user", "assistant", "tool"],
+                  "description": "Message role"
+                },
+                "content": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "description": "Simple text content"
+                    },
+                    {
+                      "type": "array",
+                      "description": "Mixed content items",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["text", "file"]
+                          },
+                          "value": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["type", "value"],
+                        "additionalProperties": false
+                      }
+                    }
+                  ]
+                }
+              },
+              "required": ["role", "content"],
+              "additionalProperties": false
+            }
+          },
+          "execution": {
+            "type": "object",
+            "description": "Per-case execution configuration",
+            "properties": {
+              "target": {
+                "type": "string",
+                "description": "Override target for this specific eval case"
+              },
+              "evaluators": {
+                "type": "array",
+                "description": "Multiple evaluators (code-based and LLM judges)",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "Evaluator name/identifier"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": ["code", "llm_judge"],
+                      "description": "Evaluator type: 'code' for scripts/regex/keywords, 'llm_judge' for LLM-based evaluation"
+                    },
+                    "script": {
+                      "type": "string",
+                      "description": "Path to evaluator script (for type: code)"
+                    },
+                    "prompt": {
+                      "type": "string",
+                      "description": "Path to judge prompt file (for type: llm_judge)"
+                    },
+                    "model": {
+                      "type": "string",
+                      "description": "Model to use for LLM judge (for type: llm_judge)"
+                    }
+                  },
+                  "required": ["name", "type"],
+                  "additionalProperties": true
+                }
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "required": ["id", "outcome", "input_messages", "expected_messages"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["evalcases"],
+  "additionalProperties": false
+}
