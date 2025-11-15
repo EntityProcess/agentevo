@@ -72,7 +72,7 @@ export class ProgressDisplay {
     
     // Header with overall progress
     const progressBar = this.buildProgressBar(this.completedTests, this.totalTests);
-    lines.push(`\n${progressBar} ${this.completedTests}/${this.totalTests} tests\n`);
+    lines.push(`\n${progressBar} ${this.completedTests}/${this.totalTests} tests`);
 
     // Worker status lines
     const sortedWorkers = Array.from(this.workers.values()).sort((a, b) => a.workerId - b.workerId);
