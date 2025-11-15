@@ -3,6 +3,7 @@ import {
   type EvaluationCache,
   type EvaluationResult,
   type ProviderResponse,
+  ensureVSCodeSubagents,
 } from "@agentevo/core";
 import { constants } from "node:fs";
 import { access, mkdir } from "node:fs/promises";
@@ -15,6 +16,7 @@ import {
   getDefaultExtension,
   type OutputFormat,
 } from "./output-writer.js";
+import { ProgressDisplay } from "./progress-display.js";
 import { calculateEvaluationSummary, formatEvaluationSummary } from "./statistics.js";
 import { selectTarget } from "./targets.js";
 
@@ -27,9 +29,13 @@ interface NormalizedOptions {
   readonly target?: string;
   readonly targetsPath?: string;
   readonly testId?: string;
+  readonly workers?: number;
   readonly outPath?: string;
   readonly format: OutputFormat;
   readonly dryRun: boolean;
+  readonly dryRunDelay: number;
+  readonly dryRunDelayMin: number;
+  readonly dryRunDelayMax: number;
   readonly agentTimeoutSeconds: number;
   readonly maxRetries: number;
   readonly cache: boolean;
@@ -66,13 +72,19 @@ function normalizeOptions(rawOptions: Record<string, unknown>): NormalizedOption
   const formatStr = normalizeString(rawOptions.format) ?? "jsonl";
   const format: OutputFormat = formatStr === "yaml" ? "yaml" : "jsonl";
 
+  const workers = normalizeNumber(rawOptions.workers, 0);
+
   return {
     target: normalizeString(rawOptions.target),
     targetsPath: normalizeString(rawOptions.targets),
     testId: normalizeString(rawOptions.testId),
+    workers: workers > 0 ? workers : undefined,
     outPath: normalizeString(rawOptions.out),
     format,
     dryRun: normalizeBoolean(rawOptions.dryRun),
+    dryRunDelay: normalizeNumber(rawOptions.dryRunDelay, 0),
+    dryRunDelayMin: normalizeNumber(rawOptions.dryRunDelayMin, 0),
+    dryRunDelayMax: normalizeNumber(rawOptions.dryRunDelayMax, 0),
     agentTimeoutSeconds: normalizeNumber(rawOptions.agentTimeout, 120),
     maxRetries: normalizeNumber(rawOptions.maxRetries, 2),
     cache: normalizeBoolean(rawOptions.cache),
@@ -167,6 +179,9 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     explicitTargetsPath: options.targetsPath,
     cliTargetName: options.target,
     dryRun: options.dryRun,
+    dryRunDelay: options.dryRunDelay,
+    dryRunDelayMin: options.dryRunDelayMin,
+    dryRunDelayMax: options.dryRunDelayMax,
     env: process.env,
   });
 
@@ -190,7 +205,45 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   const cache = options.cache ? createEvaluationCache() : undefined;
   const agentTimeoutMs = Math.max(0, options.agentTimeoutSeconds) * 1000;
 
+  // Resolve workers: CLI flag > target setting > default (1)
+  let resolvedWorkers = options.workers ?? targetSelection.resolvedTarget.workers ?? 1;
+  if (resolvedWorkers < 1 || resolvedWorkers > 50) {
+    throw new Error(`Workers must be between 1 and 50, got: ${resolvedWorkers}`);
+  }
+
+  // VSCode providers require window focus, so only 1 worker is allowed
+  const isVSCodeProvider = ["vscode", "vscode-insiders"].includes(
+    targetSelection.resolvedTarget.kind
+  );
+  if (isVSCodeProvider && resolvedWorkers > 1) {
+    console.warn(`Warning: VSCode providers require window focus. Limiting workers from ${resolvedWorkers} to 1 to prevent race conditions.`);
+    resolvedWorkers = 1;
+  }
+
+  if (options.verbose) {
+    const workersSource = options.workers
+      ? "CLI flag"
+      : targetSelection.resolvedTarget.workers
+        ? "target setting"
+        : "default";
+    console.log(`Using ${resolvedWorkers} worker(s) (source: ${workersSource})`);
+  }
+
+  // Auto-provision subagents for VSCode targets
+  if (isVSCodeProvider && !options.dryRun) {
+    await ensureVSCodeSubagents({
+      kind: targetSelection.resolvedTarget.kind as "vscode" | "vscode-insiders",
+      count: resolvedWorkers,
+      verbose: options.verbose,
+    });
+  }
+
   const evaluationRunner = await resolveEvaluationRunner();
+
+  // Initialize progress display
+  const progressDisplay = new ProgressDisplay(resolvedWorkers);
+  progressDisplay.start();
+  const pendingTests = new Set<number>();
 
   try {
     const results = await evaluationRunner({
@@ -206,10 +259,28 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
       useCache: options.cache,
       testId: options.testId,
       verbose: options.verbose,
+      maxConcurrency: resolvedWorkers,
       onResult: async (result: EvaluationResult) => {
         await outputWriter.append(result);
       },
+      onProgress: async (event) => {
+        // Track pending events to determine total test count
+        if (event.status === "pending") {
+          pendingTests.add(event.workerId);
+          progressDisplay.setTotalTests(pendingTests.size);
+        }
+        progressDisplay.updateWorker({
+          workerId: event.workerId,
+          testId: event.testId,
+          status: event.status,
+          startedAt: event.startedAt,
+          completedAt: event.completedAt,
+          error: event.error,
+        });
+      },
     });
+
+    progressDisplay.finish();
 
     await outputWriter.close();
 

@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { dispatchAgentSession } from "subagent";
+import { dispatchAgentSession, getSubagentRoot, provisionSubagents } from "subagent";
 
 import type { VSCodeResolvedConfig } from "./targets.js";
 import type { Provider, ProviderRequest, ProviderResponse } from "./types.js";
@@ -213,4 +213,69 @@ function normalizeAttachments(attachments: readonly string[] | undefined): strin
     deduped.add(path.resolve(attachment));
   }
   return Array.from(deduped);
+}
+
+export interface EnsureSubagentsOptions {
+  readonly kind: "vscode" | "vscode-insiders";
+  readonly count: number;
+  readonly verbose?: boolean;
+}
+
+export interface EnsureSubagentsResult {
+  readonly provisioned: boolean;
+  readonly message?: string;
+}
+
+/**
+ * Ensures the required number of VSCode subagents are provisioned using the subagent package.
+ * This guarantees version compatibility by using the same subagent package version.
+ * 
+ * @param options - Configuration for subagent provisioning
+ * @returns Information about the provisioning result
+ */
+export async function ensureVSCodeSubagents(
+  options: EnsureSubagentsOptions,
+): Promise<EnsureSubagentsResult> {
+  const { kind, count, verbose = false } = options;
+  const vscodeCmd = kind === "vscode-insiders" ? "code-insiders" : "code";
+  const subagentRoot = getSubagentRoot(vscodeCmd);
+  
+  try {
+    if (verbose) {
+      console.log(`Provisioning ${count} subagent(s) via: subagent ${vscodeCmd} provision`);
+    }
+    
+    const result = await provisionSubagents({
+      targetRoot: subagentRoot,
+      subagents: count,
+      dryRun: false,
+    });
+    
+    if (verbose) {
+      if (result.created.length > 0) {
+        console.log(`Created ${result.created.length} new subagent(s)`);
+      }
+      if (result.skippedExisting.length > 0) {
+        console.log(`Reusing ${result.skippedExisting.length} existing unlocked subagent(s)`);
+      }
+      console.log(`\ntotal unlocked subagents available: ${result.created.length + result.skippedExisting.length}`);
+    }
+    
+    return {
+      provisioned: true,
+      message: `Provisioned ${count} subagent(s): ${result.created.length} created, ${result.skippedExisting.length} reused`,
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    
+    // Don't fail if provisioning fails - agents might already exist
+    if (verbose) {
+      console.warn(`Provisioning failed (continuing anyway): ${errorMessage}`);
+    }
+    
+    return {
+      provisioned: false,
+      message: `Provisioning failed: ${errorMessage}`,
+    };
+  }
 }

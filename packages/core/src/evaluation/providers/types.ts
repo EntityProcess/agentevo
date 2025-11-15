@@ -46,4 +46,5 @@ export interface TargetDefinition {
   readonly provider: ProviderKind | string;
   readonly settings?: Record<string, unknown> | undefined;
   readonly judge_target?: string | undefined;
+  readonly workers?: number | undefined;
 }

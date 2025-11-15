@@ -16,7 +16,7 @@ interface EvalFixture {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, "../../..");
-const CLI_ENTRY = path.join(projectRoot, "apps/cli/src/index.ts");
+const CLI_ENTRY = path.join(projectRoot, "apps/cli/src/cli.ts");
 const MOCK_RUNNER = path.join(projectRoot, "apps/cli/test/fixtures/mock-run-evaluation.ts");
 const require = createRequire(import.meta.url);
 const TSX_LOADER = pathToFileURL(require.resolve("tsx")).href;
@@ -64,18 +64,24 @@ async function runCli(
   const baseEnv: Record<string, string> = { ...process.env } as Record<string, string>;
   delete baseEnv.CLI_ENV_SAMPLE;
 
-  const result = await execaNode(CLI_ENTRY, args, {
-    cwd: fixture.suiteDir,
-    env: {
-      ...baseEnv,
-      AGENTEVO_CLI_EVAL_RUNNER: MOCK_RUNNER,
-      AGENTEVO_CLI_EVAL_RUNNER_OUTPUT: fixture.diagnosticsPath,
-      ...extraEnv,
-    },
-    nodeOptions: ["--import", TSX_LOADER],
-  });
+  try {
+    const result = await execaNode(CLI_ENTRY, args, {
+      cwd: fixture.suiteDir,
+      env: {
+        ...baseEnv,
+        AGENTEVO_CLI_EVAL_RUNNER: MOCK_RUNNER,
+        AGENTEVO_CLI_EVAL_RUNNER_OUTPUT: fixture.diagnosticsPath,
+        ...extraEnv,
+      },
+      nodeOptions: ["--import", TSX_LOADER],
+      reject: false,
+    });
 
-  return { stdout: result.stdout, stderr: result.stderr };
+    return { stdout: result.stdout, stderr: result.stderr };
+  } catch (error) {
+    console.error("CLI execution failed:", error);
+    throw error;
+  }
 }
 
 function extractOutputPath(stdout: string): string {
@@ -125,7 +131,7 @@ describe("agentevo eval CLI", () => {
     ]);
 
     expect(stderr).toBe("");
-    expect(stdout).toContain("Using target (test-file): file-target");
+    expect(stdout).toContain("Using target (test-file): file-target [provider=mock]");
     expect(stdout).toContain("Mean score: 0.750");
     expect(stdout).toContain("Std deviation: 0.212");
 
@@ -183,7 +189,7 @@ describe("agentevo eval CLI", () => {
       "cli-target",
     ]);
 
-    expect(stdout).toContain("Using target (cli): cli-target");
+    expect(stdout).toContain("Using target (cli): cli-target [provider=mock]");
 
     const diagnostics = await readDiagnostics(fixture);
     expect(diagnostics.target).toBe("cli-target");
@@ -199,7 +205,7 @@ describe("agentevo eval CLI", () => {
 
     const { stdout } = await runCli(fixture, ["eval", fixture.testFilePath, "--verbose"]);
 
-    expect(stdout).toContain("Using target (default): default");
+    expect(stdout).toContain("Using target (default): default [provider=mock]");
 
     const diagnostics = await readDiagnostics(fixture);
     expect(diagnostics.target).toBe("default");

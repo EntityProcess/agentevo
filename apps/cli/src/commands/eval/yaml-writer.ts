@@ -1,3 +1,4 @@
+import { Mutex } from "async-mutex";
 import { createWriteStream } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
@@ -6,6 +7,7 @@ import { stringify as stringifyYaml } from "yaml";
 
 export class YamlWriter {
   private readonly stream: ReturnType<typeof createWriteStream>;
+  private readonly mutex = new Mutex();
   private closed = false;
   private isFirst = true;
 
@@ -20,30 +22,32 @@ export class YamlWriter {
   }
 
   async append(record: unknown): Promise<void> {
-    if (this.closed) {
-      throw new Error("Cannot write to closed YAML writer");
-    }
+    await this.mutex.runExclusive(async () => {
+      if (this.closed) {
+        throw new Error("Cannot write to closed YAML writer");
+      }
 
-    // Convert to YAML with proper multi-line string handling
-    const yamlDoc = stringifyYaml(record, {
-      indent: 2,
-      lineWidth: 0, // Disable line wrapping
-      defaultStringType: "PLAIN",
-      defaultKeyType: "PLAIN",
-    });
-
-    // Add YAML document separator (---) between records
-    const separator = this.isFirst ? "---\n" : "\n---\n";
-    this.isFirst = false;
-
-    const content = `${separator}${yamlDoc}`;
-
-    if (!this.stream.write(content)) {
-      await new Promise<void>((resolve, reject) => {
-        this.stream.once("drain", resolve);
-        this.stream.once("error", reject);
+      // Convert to YAML with proper multi-line string handling
+      const yamlDoc = stringifyYaml(record, {
+        indent: 2,
+        lineWidth: 0, // Disable line wrapping
+        defaultStringType: "PLAIN",
+        defaultKeyType: "PLAIN",
       });
-    }
+
+      // Add YAML document separator (---) between records
+      const separator = this.isFirst ? "---\n" : "\n---\n";
+      this.isFirst = false;
+
+      const content = `${separator}${yamlDoc}`;
+
+      if (!this.stream.write(content)) {
+        await new Promise<void>((resolve, reject) => {
+          this.stream.once("drain", resolve);
+          this.stream.once("error", reject);
+        });
+      }
+    });
   }
 
   async close(): Promise<void> {

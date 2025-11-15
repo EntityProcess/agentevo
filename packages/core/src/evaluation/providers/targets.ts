@@ -28,6 +28,9 @@ export interface GeminiResolvedConfig {
 
 export interface MockResolvedConfig {
   readonly response?: string;
+  readonly delayMs?: number;
+  readonly delayMinMs?: number;
+  readonly delayMaxMs?: number;
 }
 
 export interface VSCodeResolvedConfig {
@@ -43,30 +46,35 @@ export type ResolvedTarget =
       readonly kind: "azure";
       readonly name: string;
       readonly judgeTarget?: string;
+      readonly workers?: number;
       readonly config: AzureResolvedConfig;
     }
   | {
       readonly kind: "anthropic";
       readonly name: string;
       readonly judgeTarget?: string;
+      readonly workers?: number;
       readonly config: AnthropicResolvedConfig;
     }
   | {
       readonly kind: "gemini";
       readonly name: string;
       readonly judgeTarget?: string;
+      readonly workers?: number;
       readonly config: GeminiResolvedConfig;
     }
   | {
       readonly kind: "mock";
       readonly name: string;
       readonly judgeTarget?: string;
+      readonly workers?: number;
       readonly config: MockResolvedConfig;
     }
   | {
       readonly kind: "vscode" | "vscode-insiders";
       readonly name: string;
       readonly judgeTarget?: string;
+      readonly workers?: number;
       readonly config: VSCodeResolvedConfig;
     };
 
@@ -75,6 +83,7 @@ const BASE_TARGET_SCHEMA = z.object({
   provider: z.string().min(1, "provider is required"),
   settings: z.record(z.unknown()).optional(),
   judge_target: z.string().optional(),
+  workers: z.number().int().min(1).optional(),
 });
 
 const DEFAULT_AZURE_API_VERSION = "2024-10-01-preview";
@@ -107,6 +116,7 @@ export function resolveTargetDefinition(
         kind: "azure",
         name: parsed.name,
         judgeTarget: parsed.judge_target,
+        workers: parsed.workers,
         config: resolveAzureConfig(parsed, env),
       };
     case "anthropic":
@@ -114,6 +124,7 @@ export function resolveTargetDefinition(
         kind: "anthropic",
         name: parsed.name,
         judgeTarget: parsed.judge_target,
+        workers: parsed.workers,
         config: resolveAnthropicConfig(parsed, env),
       };
     case "gemini":
@@ -123,6 +134,7 @@ export function resolveTargetDefinition(
         kind: "gemini",
         name: parsed.name,
         judgeTarget: parsed.judge_target,
+        workers: parsed.workers,
         config: resolveGeminiConfig(parsed, env),
       };
     case "mock":
@@ -130,6 +142,7 @@ export function resolveTargetDefinition(
         kind: "mock",
         name: parsed.name,
         judgeTarget: parsed.judge_target,
+        workers: parsed.workers,
         config: resolveMockConfig(parsed),
       };
     case "vscode":
@@ -138,6 +151,7 @@ export function resolveTargetDefinition(
         kind: provider as "vscode" | "vscode-insiders",
         name: parsed.name,
         judgeTarget: parsed.judge_target,
+        workers: parsed.workers,
         config: resolveVSCodeConfig(parsed, env, provider === "vscode-insiders"),
       };
     default:
