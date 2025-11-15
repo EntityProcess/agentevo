@@ -1,4 +1,4 @@
-description: On-call incident triage scenario adapted to AgentEvo’s BbEval-compatible single-case YAML format.
+description: On-call incident triage scenario.
 evalcases:
   - id: incident-triage-playbook
     conversation_id: checkout-incident-2024-08-17
