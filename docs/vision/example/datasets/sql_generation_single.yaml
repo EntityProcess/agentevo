@@ -1,46 +1,49 @@
 description: On-call incident triage scenario.
 evalcases:
-  - id: incident-triage-playbook
-    conversation_id: checkout-incident-2024-08-17
-    checkpoint: final-response
+  - id: incident-triage-playbook-final-response
+    outcome: |
+      Assistant proposes actionable steps and references the runbook marker INCIDENT_RUNBOOK_V1
+      - Notes the 09:26 UTC regression window and links it to the recent deploy
+      - Mentions collecting pod-level logs and latency traces before rollback
+      - References INCIDENT_RUNBOOK_V1 and suggests notifying the incident commander
+    conversation_id: incident-triage-playbook
     execution:
       target: default_internal
       evaluator:
         type: llm_judge
         template: ./templates/incident-triage-judge.md
         model: gpt-5-chat
-    input:
-      messages:
-        - role: system
-          content: You are an SRE assisting with on-call incident mitigation. Always cite the official runbook marker INCIDENT_RUNBOOK_V1 when you reference playbooks.
-        - role: user
-          content:
-            - type: text
-              value: |-
-                Production latency for the checkout API crossed 2s p95 at 09:26 UTC.
-                Quick facts:
-                - Region: us-east-1
-                - Recent deploy: checkout-service@3a2f9bd (rolled out 20 minutes ago)
-                - Metrics: spike in CPU and open connections on checkout pods
+      optimization:
+        type: ace
+        playbook_path: ./playbooks/triage.json
+        max_epochs: 2 # How many times to go through ALL your test cases
+        max_reflector_rounds: 2 # How many times to analyze ONE failed test case
+        allow_dynamic_sections: true # ACE can invent new sections
+    input_messages:
+      - role: system
+        content: You are an SRE assisting with on-call incident mitigation. Always cite the official runbook marker INCIDENT_RUNBOOK_V1 when you reference playbooks.
+      - role: user
+        content:
+          - type: text
+            value: |-
+              Production latency for the checkout API crossed 2s p95 at 09:26 UTC.
+              Quick facts:
+              - Region: us-east-1
+              - Recent deploy: checkout-service@3a2f9bd (rolled out 20 minutes ago)
+              - Metrics: spike in CPU and open connections on checkout pods
 
-                Give me the immediate triage steps you would take.
-            - type: file
-              value: ../.agentevo/instructions/incident-triage.md
-    expected:
-      outcome: |
-        Assistant proposes actionable steps and references the runbook marker INCIDENT_RUNBOOK_V1
-        - Notes the 09:26 UTC regression window and links it to the recent deploy
-        - Mentions collecting pod-level logs and latency traces before rollback
-        - References INCIDENT_RUNBOOK_V1 and suggests notifying the incident commander
-      messages:
-        - role: assistant
-          content:
-            - type: text
-              value: |-
-                Here's how I'd respond (referencing INCIDENT_RUNBOOK_V1 per policy):
+              Give me the immediate triage steps you would take.
+          - type: file
+            value: ../.agentevo/instructions/incident-triage.md
+    expected_messages:
+      - role: assistant
+        content:
+          - type: text
+            value: |-
+              Here's how I'd respond (referencing INCIDENT_RUNBOOK_V1 per policy):
 
-                1. Stop the bleeding: enable canary rollback hooks for checkout-service@3a2f9bd.
-                2. Collect evidence: capture pod logs, pprof CPU profiles, and request traces from the past 10 minutes.
-                3. Communicate: page the incident commander and post status in #checkout-ops with INCIDENT_RUNBOOK_V1 context.
-                4. Verify mitigation: after rollback, confirm p95 latency < 800 ms and connection pool stabilizes.
-                5. Follow-up: open a ticket for deeper root cause analysis once traffic normalizes.
+              1. Stop the bleeding: enable canary rollback hooks for checkout-service@3a2f9bd.
+              2. Collect evidence: capture pod logs, pprof CPU profiles, and request traces from the past 10 minutes.
+              3. Communicate: page the incident commander and post status in #checkout-ops with INCIDENT_RUNBOOK_V1 context.
+              4. Verify mitigation: after rollback, confirm p95 latency < 800 ms and connection pool stabilizes.
+              5. Follow-up: open a ticket for deeper root cause analysis once traffic normalizes.
