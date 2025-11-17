@@ -132,6 +132,11 @@ The system SHALL validate that file URLs referenced in eval files exist.
 - **WHEN** file reference is relative (e.g., `../prompts/file.md`)
 - **THEN** path is resolved relative to the eval file's directory
 
+#### Scenario: Empty file warning
+
+- **WHEN** referenced file exists but is empty
+- **THEN** warning is issued about empty file
+
 ### Requirement: Error Reporting
 
 The system SHALL provide clear, actionable error messages.
@@ -156,20 +161,6 @@ The system SHALL provide clear, actionable error messages.
 - **WHEN** linting completes
 - **THEN** summary shows total files checked, passed, failed
 
-### Requirement: Strict Mode Validation
-
-The system SHALL support `--strict` flag for additional validation checks.
-
-#### Scenario: Strict mode enabled
-
-- **WHEN** user runs `agentevo lint --strict path.yaml`
-- **THEN** additional checks are performed beyond basic schema validation
-
-#### Scenario: Strict mode validates referenced instruction files
-
-- **WHEN** strict mode enabled and instruction file referenced
-- **THEN** linter checks that instruction file is not empty
-
 ### Requirement: Output Formatting
 
 The system SHALL format validation output for developer readability.
@@ -183,11 +174,6 @@ The system SHALL format validation output for developer readability.
 
 - **WHEN** stdout is not a TTY
 - **THEN** output is plain text without ANSI codes
-
-#### Scenario: JSON output mode
-
-- **WHEN** user runs `agentevo lint --json path.yaml`
-- **THEN** validation results output as JSON for tooling integration
 
 ### Requirement: Performance
 

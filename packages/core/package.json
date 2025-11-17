@@ -18,6 +18,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./evaluation/validation": {
+      "types": "./dist/evaluation/validation/index.d.ts",
+      "import": "./dist/evaluation/validation/index.js",
+      "require": "./dist/evaluation/validation/index.cjs"
     }
   },
   "scripts": {

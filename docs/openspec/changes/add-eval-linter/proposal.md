@@ -19,7 +19,7 @@ A dedicated linter command enables fast feedback, better tooling integration, an
 - Detect file type via `$schema` field: `agentevo-eval-v2` for eval files, `agentevo-targets-v2` for targets
 - Files missing `$schema` field are rejected with clear error message
 - Provide clear error messages with file path, location context
-- Support `--strict` mode for additional checks (e.g., validate instruction content is not empty)
+- Validate that referenced instruction files exist and warn if empty
 - Exit with non-zero code on validation failures for CI integration
 
 ## Impact
