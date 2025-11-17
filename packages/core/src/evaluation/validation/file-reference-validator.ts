@@ -1,8 +1,8 @@
-import { constants } from "node:fs";
-import { access, readFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { parse } from "yaml";
 
+import { buildSearchRoots, findGitRoot, resolveFileReference } from "../file-utils.js";
 import type { ValidationError } from "./types.js";
 
 type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
@@ -11,15 +11,6 @@ type JsonArray = readonly JsonValue[];
 
 function isObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-async function fileExists(filePath: string): Promise<boolean> {
-  try {
-    await access(filePath, constants.F_OK);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 /**
@@ -32,7 +23,19 @@ export async function validateFileReferences(
 ): Promise<readonly ValidationError[]> {
   const errors: ValidationError[] = [];
   const absolutePath = path.resolve(evalFilePath);
-  const evalDir = path.dirname(absolutePath);
+
+  // Find git root and build search roots (same as yaml-parser does at runtime)
+  const gitRoot = await findGitRoot(absolutePath);
+  if (!gitRoot) {
+    errors.push({
+      severity: "error",
+      filePath: absolutePath,
+      message: "Cannot validate file references: git repository root not found",
+    });
+    return errors;
+  }
+
+  const searchRoots = buildSearchRoots(absolutePath, gitRoot);
 
   let parsed: unknown;
   try {
@@ -61,13 +64,13 @@ export async function validateFileReferences(
     // Check input_messages
     const inputMessages = evalCase["input_messages"];
     if (Array.isArray(inputMessages)) {
-      await validateMessagesFileRefs(inputMessages, `evalcases[${i}].input_messages`, evalDir, absolutePath, errors);
+      await validateMessagesFileRefs(inputMessages, `evalcases[${i}].input_messages`, searchRoots, absolutePath, errors);
     }
 
     // Check expected_messages
     const expectedMessages = evalCase["expected_messages"];
     if (Array.isArray(expectedMessages)) {
-      await validateMessagesFileRefs(expectedMessages, `evalcases[${i}].expected_messages`, evalDir, absolutePath, errors);
+      await validateMessagesFileRefs(expectedMessages, `evalcases[${i}].expected_messages`, searchRoots, absolutePath, errors);
     }
   }
 
@@ -77,7 +80,7 @@ export async function validateFileReferences(
 async function validateMessagesFileRefs(
   messages: JsonArray,
   location: string,
-  evalDir: string,
+  searchRoots: readonly string[],
   filePath: string,
   errors: ValidationError[],
 ): Promise<void> {
@@ -118,18 +121,15 @@ async function validateMessagesFileRefs(
         continue;
       }
 
-      // Resolve file path relative to eval file directory
-      const resolvedPath = path.isAbsolute(value)
-        ? value
-        : path.resolve(evalDir, value);
+      // Use the same file resolution logic as yaml-parser at runtime
+      const { resolvedPath } = await resolveFileReference(value, searchRoots);
 
-      const exists = await fileExists(resolvedPath);
-      if (!exists) {
+      if (!resolvedPath) {
         errors.push({
           severity: "error",
           filePath,
           location: `${location}[${i}].content[${j}]`,
-          message: `Referenced file not found: ${value} (resolved to: ${resolvedPath})`,
+          message: `Referenced file not found: ${value}`,
         });
       } else {
         // Check that file is not empty
