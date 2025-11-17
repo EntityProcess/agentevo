@@ -1,6 +1,6 @@
 {
   "name": "agentevo",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "CLI entry point for AgentEvo",
   "type": "module",
   "repository": {

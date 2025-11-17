@@ -74,6 +74,58 @@ You are now ready to start development. The monorepo contains:
 
 ## Quick Start
 
+### Linting Eval Files
+
+Validate your eval and targets files before running them:
+
+```bash
+# Lint a single file
+agentevo lint evals/my-test.yaml
+
+# Lint multiple files
+agentevo lint evals/test1.yaml evals/test2.yaml
+
+# Lint entire directory (recursively finds all YAML files)
+agentevo lint evals/
+
+# Enable strict mode for additional checks
+agentevo lint --strict evals/
+
+# Output results in JSON format
+agentevo lint --json evals/
+```
+
+**Linter features:**
+
+- Validates `$schema` field is present and correct
+- Checks required fields and structure for eval and targets files
+- Validates file references exist and are accessible
+- Provides clear error messages with file path and location context
+- Exits with non-zero code on validation failures (CI-friendly)
+- Supports strict mode for additional checks (e.g., non-empty file content)
+
+**File type detection:**
+
+All AgentEvo files must include a `$schema` field:
+
+```yaml
+# Eval files
+$schema: agentevo-eval-v2
+evalcases:
+  - id: test-1
+    # ...
+
+# Targets files
+$schema: agentevo-targets-v2
+targets:
+  - name: default
+    # ...
+```
+
+Files without a `$schema` field will be rejected with a clear error message.
+
+### Running Evals
+
 Run eval (target auto-selected from test file or CLI override):
 
 ```bash

@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { readFileSync } from "node:fs";
 
 import { registerEvalCommand } from "./commands/eval/index.js";
+import { registerLintCommand } from "./commands/lint/index.js";
 import { registerStatusCommand } from "./commands/status.js";
 import { initCommand } from "./commands/init/index.js";
 
@@ -14,6 +15,7 @@ export function createProgram(): Command {
 
   registerStatusCommand(program);
   registerEvalCommand(program);
+  registerLintCommand(program);
 
   // Init command
   program

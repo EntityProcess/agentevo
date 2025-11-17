@@ -1,7 +1,7 @@
 # AgentEvo V2 Eval Schema Example
 # Demonstrates all V2 schema features with real file references and minimal redundancy
 
-version: 2.0
+$schema: agentevo-eval-v2
 description: V2 schema example showing basic features, conversation threading, multiple evaluators, and ACE optimization
 
 # File-level default target (optional)

@@ -4,12 +4,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 
+import { buildSearchRoots, resolveFileReference } from "./file-utils.js";
 import type { GraderKind, JsonObject, JsonValue, TestCase, TestMessage } from "./types.js";
 import { isGraderKind, isJsonObject, isTestMessage } from "./types.js";
 
 const CODE_BLOCK_PATTERN = /```[\s\S]*?```/g;
 const ANSI_YELLOW = "\u001b[33m";
 const ANSI_RESET = "\u001b[0m";
+const SCHEMA_EVAL_V2 = "agentevo-eval-v2";
 
 /**
  * Determine whether a path references guideline content (instructions or prompts).
@@ -51,7 +53,7 @@ type LoadOptions = {
 };
 
 type RawTestSuite = JsonObject & {
-  readonly version?: JsonValue;
+  readonly $schema?: JsonValue;
   readonly grader?: JsonValue;
   readonly evalcases?: JsonValue;
   readonly target?: JsonValue;
@@ -92,30 +94,17 @@ export async function loadTestCases(
 
   const suite = parsed as RawTestSuite;
   
-  // Check version field to determine schema format
-  const version = typeof suite.version === 'number' ? suite.version : 
-                  typeof suite.version === 'string' ? parseFloat(suite.version) : 
-                  undefined;
+  // Check $schema field to ensure V2 format
+  const schema = suite.$schema;
   
-  // Require V2 format (version 2.0 or higher)
-  if (version === undefined) {
-    throw new Error(
-      `Missing version field in ${testFilePath}.\n` +
-      `Please add 'version: 2.0' at the top of the file.`
-    );
+  if (schema !== SCHEMA_EVAL_V2) {
+    const message = typeof schema === 'string' 
+      ? `Invalid $schema value '${schema}' in ${testFilePath}. Expected '${SCHEMA_EVAL_V2}'`
+      : `Missing required field '$schema' in ${testFilePath}.\nPlease add '$schema: ${SCHEMA_EVAL_V2}' at the top of the file.`;
+    throw new Error(message);
   }
   
-  if (version < 2.0) {
-    throw new Error(
-      `V1 eval format detected in ${testFilePath} (version ${version}).\n` +
-      `The eval schema has been updated to V2. Please migrate your file:\n` +
-      `  1. Update to 'version: 2.0'\n` +
-      `  2. Rename 'testcases' to 'evalcases'\n` +
-      `  3. Split 'messages' into 'input_messages' and 'expected_messages'`
-    );
-  }
-  
-  // V2 format: version 2.0 or higher
+  // V2 format: $schema is agentevo-eval-v2
   const rawTestcases = suite.evalcases;
   if (!Array.isArray(rawTestcases)) {
     throw new Error(`Invalid test file format: ${testFilePath} - missing 'evalcases' field`);
@@ -360,73 +349,6 @@ function resolveToAbsolutePath(candidate: URL | string): string {
     return path.resolve(candidate);
   }
   throw new TypeError("Unsupported repoRoot value. Expected string or URL.");
-}
-
-function buildSearchRoots(testPath: string, repoRoot: string): readonly string[] {
-  const uniqueRoots: string[] = [];
-  const addRoot = (root: string): void => {
-    const normalized = path.resolve(root);
-    if (!uniqueRoots.includes(normalized)) {
-      uniqueRoots.push(normalized);
-    }
-  };
-
-  let currentDir = path.dirname(testPath);
-  let reachedBoundary = false;
-  while (!reachedBoundary) {
-    addRoot(currentDir);
-    const parentDir = path.dirname(currentDir);
-    if (currentDir === repoRoot || parentDir === currentDir) {
-      reachedBoundary = true;
-    } else {
-      currentDir = parentDir;
-    }
-  }
-
-  addRoot(repoRoot);
-  addRoot(process.cwd());
-  return uniqueRoots;
-}
-
-function trimLeadingSeparators(value: string): string {
-  const trimmed = value.replace(/^[/\\]+/, "");
-  return trimmed.length > 0 ? trimmed : value;
-}
-
-async function resolveFileReference(
-  rawValue: string,
-  searchRoots: readonly string[],
-): Promise<{
-  readonly displayPath: string;
-  readonly resolvedPath?: string;
-  readonly attempted: readonly string[];
-}> {
-  const displayPath = trimLeadingSeparators(rawValue);
-  const potentialPaths: string[] = [];
-
-  if (path.isAbsolute(rawValue)) {
-    potentialPaths.push(path.normalize(rawValue));
-  }
-
-  for (const base of searchRoots) {
-    potentialPaths.push(path.resolve(base, displayPath));
-  }
-
-  const attempted: string[] = [];
-  const seen = new Set<string>();
-  for (const candidate of potentialPaths) {
-    const absoluteCandidate = path.resolve(candidate);
-    if (seen.has(absoluteCandidate)) {
-      continue;
-    }
-    seen.add(absoluteCandidate);
-    attempted.push(absoluteCandidate);
-    if (await fileExists(absoluteCandidate)) {
-      return { displayPath, resolvedPath: absoluteCandidate, attempted };
-    }
-  }
-
-  return { displayPath, attempted };
 }
 
 function asString(value: unknown): string | undefined {
