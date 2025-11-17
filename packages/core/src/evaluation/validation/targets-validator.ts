@@ -2,9 +2,8 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { parse } from "yaml";
 
+import { KNOWN_PROVIDERS, PROVIDER_ALIASES, TARGETS_SCHEMA_V2 } from "../providers/types.js";
 import type { ValidationError, ValidationResult } from "./types.js";
-
-const SCHEMA_TARGETS_V2 = "agentv-targets-v2";
 
 type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
 type JsonObject = { readonly [key: string]: JsonValue };
@@ -57,11 +56,11 @@ export async function validateTargetsFile(
 
   // Validate $schema field
   const schema = parsed["$schema"];
-  if (schema !== SCHEMA_TARGETS_V2) {
+  if (schema !== TARGETS_SCHEMA_V2) {
     const message =
       typeof schema === "string"
-        ? `Invalid $schema value '${schema}'. Expected '${SCHEMA_TARGETS_V2}'`
-        : `Missing required field '$schema'. Expected '${SCHEMA_TARGETS_V2}'`;
+        ? `Invalid $schema value '${schema}'. Expected '${TARGETS_SCHEMA_V2}'`
+        : `Missing required field '$schema'. Expected '${TARGETS_SCHEMA_V2}'`;
     errors.push({
       severity: "error",
       filePath: absolutePath,
@@ -88,7 +87,7 @@ export async function validateTargetsFile(
   }
 
   // Validate each target definition
-  const knownProviders = ["azure", "openai", "anthropic", "bedrock", "vertex"];
+  const knownProviders = [...KNOWN_PROVIDERS, ...PROVIDER_ALIASES];
   
   for (let i = 0; i < targets.length; i++) {
     const target = targets[i];

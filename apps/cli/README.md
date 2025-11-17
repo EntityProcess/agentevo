@@ -74,6 +74,23 @@ You are now ready to start development. The monorepo contains:
 
 ## Quick Start
 
+### Linting Eval Files
+
+Validate your eval and targets files before running them:
+
+```bash
+# Lint a single file
+agentv lint evals/my-test.yaml
+
+# Lint multiple files
+agentv lint evals/test1.yaml evals/test2.yaml
+
+# Lint entire directory (recursively finds all YAML files)
+agentv lint evals/
+```
+
+### Running Evals
+
 Run eval (target auto-selected from test file or CLI override):
 
 ```bash

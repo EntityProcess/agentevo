@@ -3,28 +3,34 @@ import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import { parse } from "yaml";
 
+import { TARGETS_SCHEMA_V2 } from "./types.js";
 import type { TargetDefinition } from "./types.js";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function checkVersion(parsed: Record<string, unknown>, absolutePath: string): void {
-  const version = typeof parsed.version === 'number' ? parsed.version : 
-                  typeof parsed.version === 'string' ? parseFloat(parsed.version) : 
-                  undefined;
+function checkSchema(parsed: Record<string, unknown>, absolutePath: string): void {
+  const schema = parsed.$schema;
 
-  if (version === undefined) {
+  if (schema === undefined) {
     throw new Error(
-      `Missing version field in targets.yaml at ${absolutePath}.\n` +
-      `Please add 'version: 2.0' at the top of the file.`
+      `Missing $schema field in targets.yaml at ${absolutePath}.\n` +
+      `Please add '$schema: ${TARGETS_SCHEMA_V2}' at the top of the file.`
     );
   }
 
-  if (version < 2.0) {
+  if (typeof schema !== 'string') {
     throw new Error(
-      `Outdated targets.yaml format (version ${version}) at ${absolutePath}.\n` +
-      `Please update to version 2.0 format with 'targets' array.`
+      `Invalid $schema field in targets.yaml at ${absolutePath}.\n` +
+      `Expected a string value '${TARGETS_SCHEMA_V2}'.`
+    );
+  }
+
+  if (schema !== TARGETS_SCHEMA_V2) {
+    throw new Error(
+      `Invalid $schema '${schema}' in targets.yaml at ${absolutePath}.\n` +
+      `Expected '${TARGETS_SCHEMA_V2}'.`
     );
   }
 }
@@ -82,10 +88,10 @@ export async function readTargetDefinitions(filePath: string): Promise<readonly 
   const parsed = parse(raw) as unknown;
 
   if (!isRecord(parsed)) {
-    throw new Error(`targets.yaml at ${absolutePath} must be a YAML object with 'version' and 'targets' fields`);
+    throw new Error(`targets.yaml at ${absolutePath} must be a YAML object with '$schema' and 'targets' fields`);
   }
 
-  checkVersion(parsed, absolutePath);
+  checkSchema(parsed, absolutePath);
 
   const targets = extractTargetsArray(parsed, absolutePath);
   const definitions = targets.map((entry, index) => assertTargetDefinition(entry, index, absolutePath));

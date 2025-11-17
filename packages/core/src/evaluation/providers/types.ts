@@ -12,6 +12,37 @@ export type ProviderKind =
   | "vscode"
   | "vscode-insiders";
 
+/**
+ * List of all supported provider kinds.
+ * This is the source of truth for provider validation.
+ */
+export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
+  "azure",
+  "anthropic",
+  "gemini",
+  "mock",
+  "vscode",
+  "vscode-insiders",
+] as const;
+
+/**
+ * Provider aliases that are accepted in target definitions.
+ * These map to the canonical ProviderKind values.
+ */
+export const PROVIDER_ALIASES: readonly string[] = [
+  "azure-openai",    // alias for "azure"
+  "google",          // alias for "gemini"
+  "google-gemini",   // alias for "gemini"
+  "openai",          // legacy/future support
+  "bedrock",         // legacy/future support
+  "vertex",          // legacy/future support
+] as const;
+
+/**
+ * Schema identifier for targets.yaml files (version 2).
+ */
+export const TARGETS_SCHEMA_V2 = "agentv-targets-v2";
+
 export interface ProviderRequest {
   readonly prompt: string;
   readonly guidelines?: string;
