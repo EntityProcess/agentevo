@@ -32,7 +32,7 @@ describe("output-writer", () => {
       const writer = await createOutputWriter(filePath, "jsonl");
 
       const result: EvaluationResult = {
-        test_id: "test-001",
+        eval_id: "test-001",
         score: 0.85,
         hits: ["aspect1"],
         misses: [],
@@ -49,7 +49,7 @@ describe("output-writer", () => {
       const content = await readFile(filePath, "utf-8");
 
       // JSONL format verification
-      expect(content).toContain('"test_id":"test-001"');
+      expect(content).toContain('"eval_id":"test-001"');
       expect(content.endsWith("\n")).toBe(true);
     });
 
@@ -58,7 +58,7 @@ describe("output-writer", () => {
       const writer = await createOutputWriter(filePath, "yaml");
 
       const result: EvaluationResult = {
-        test_id: "test-002",
+        eval_id: "test-002",
         score: 0.95,
         hits: ["aspect1", "aspect2"],
         misses: [],
@@ -76,7 +76,7 @@ describe("output-writer", () => {
 
       // YAML format verification
       expect(content).toContain("---");
-      expect(content).toContain("test_id: test-002");
+      expect(content).toContain("eval_id: test-002");
     });
 
     test("both writers implement the same interface", async () => {
@@ -87,7 +87,7 @@ describe("output-writer", () => {
       const yamlWriter = await createOutputWriter(yamlPath, "yaml");
 
       const result: EvaluationResult = {
-        test_id: "interface-test",
+        eval_id: "interface-test",
         score: 0.5,
         hits: [],
         misses: [],

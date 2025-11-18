@@ -13,7 +13,7 @@ import { createProvider } from "./providers/index.js";
 import { resolveTargetDefinition, type ResolvedTarget } from "./providers/targets.js";
 import type { EnvLookup, Provider, ProviderResponse, TargetDefinition } from "./providers/types.js";
 import type { EvaluationResult, JsonObject, TestCase } from "./types.js";
-import { buildPromptInputs, loadTestCases } from "./yaml-parser.js";
+import { buildPromptInputs, loadEvalCases } from "./yaml-parser.js";
 
 type MaybePromise<T> = T | Promise<T>;
 
@@ -88,7 +88,7 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
     onProgress,
   } = options;
 
-  const load = loadTestCases;
+  const load = loadEvalCases;
   const testCases = await load(testFilePath, repoRoot, { verbose });
 
   const filteredTestCases = filterTestCases(testCases, evalId);

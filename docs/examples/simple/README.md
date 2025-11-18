@@ -52,7 +52,7 @@ simple/
 ### Evaluator Components (`evaluators/`)
 
 - **`scripts/`**: Code-based evaluators (Python, shell, etc.)
-  - Input: JSON with test case data via stdin
+  - Input: JSON with eval case data via stdin
   - Output: JSON with score, passed flag, and reasoning
   - Example: `check_python_keywords.py` validates Python code quality
 

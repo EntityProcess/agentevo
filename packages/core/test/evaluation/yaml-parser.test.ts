@@ -3,7 +3,7 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { tmpdir } from "node:os";
 
-import { isGuidelineFile, loadTestCases } from "../../src/evaluation/yaml-parser.js";
+import { isGuidelineFile, loadEvalCases } from "../../src/evaluation/yaml-parser.js";
 
 describe("isGuidelineFile", () => {
   describe("with default patterns", () => {
@@ -119,7 +119,7 @@ evalcases:
     await writeFile(evalPath, evalContent, "utf8");
 
     // Load test cases
-    const testCases = await loadTestCases(evalPath, repoRoot);
+    const testCases = await loadEvalCases(evalPath, repoRoot);
 
     expect(testCases).toHaveLength(1);
     const testCase = testCases[0];
@@ -162,7 +162,7 @@ evalcases:
     await writeFile(evalPath, evalContent, "utf8");
 
     // Load test cases
-    const testCases = await loadTestCases(evalPath, repoRoot);
+    const testCases = await loadEvalCases(evalPath, repoRoot);
 
     expect(testCases).toHaveLength(1);
     const testCase = testCases[0];
@@ -216,7 +216,7 @@ evalcases:
     await writeFile(evalPath, evalContent, "utf8");
 
     // Load test cases
-    const testCases = await loadTestCases(evalPath, repoRoot);
+    const testCases = await loadEvalCases(evalPath, repoRoot);
 
     expect(testCases).toHaveLength(1);
     const testCase = testCases[0];
@@ -270,7 +270,7 @@ evalcases:
     await writeFile(evalPath, evalContent, "utf8");
 
     // Load test cases
-    const testCases = await loadTestCases(evalPath, repoRoot);
+    const testCases = await loadEvalCases(evalPath, repoRoot);
 
     expect(testCases).toHaveLength(1);
     const testCase = testCases[0];

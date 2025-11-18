@@ -144,12 +144,12 @@ export function formatEvaluationSummary(summary: EvaluationSummary): string {
 
   lines.push("\nTop performing test cases:");
   summary.topResults.forEach((result, index) => {
-    lines.push(`  ${index + 1}. ${result.test_id}: ${formatScore(result.score)}`);
+    lines.push(`  ${index + 1}. ${result.eval_id}: ${formatScore(result.score)}`);
   });
 
   lines.push("\nLowest performing test cases:");
   summary.bottomResults.forEach((result, index) => {
-    lines.push(`  ${index + 1}. ${result.test_id}: ${formatScore(result.score)}`);
+    lines.push(`  ${index + 1}. ${result.eval_id}: ${formatScore(result.score)}`);
   });
 
   return lines.join("\n");
