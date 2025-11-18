@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import micromatch from "micromatch";
 import { parse } from "yaml";
 
-import { buildSearchRoots, resolveFileReference } from "./file-utils.js";
+import { buildDirectoryChain, buildSearchRoots, resolveFileReference } from "./file-utils.js";
 import type { GraderKind, JsonObject, JsonValue, TestCase, TestMessage } from "./types.js";
 import { isGraderKind, isJsonObject, isTestMessage } from "./types.js";
 
@@ -26,43 +26,49 @@ type AgentVConfig = {
 };
 
 /**
- * Load optional .agentv/config.yaml configuration file from eval file directory.
+ * Load optional .agentv/config.yaml configuration file.
+ * Searches from eval file directory up to repo root.
  */
-async function loadConfig(evalFilePath: string): Promise<AgentVConfig | null> {
-  const evalDir = path.dirname(evalFilePath);
-  const configPath = path.join(evalDir, ".agentv", "config.yaml");
+async function loadConfig(evalFilePath: string, repoRoot: string): Promise<AgentVConfig | null> {
+  const directories = buildDirectoryChain(evalFilePath, repoRoot);
   
-  if (!(await fileExists(configPath))) {
-    return null;
+  for (const directory of directories) {
+    const configPath = path.join(directory, ".agentv", "config.yaml");
+    
+    if (!(await fileExists(configPath))) {
+      continue;
+    }
+    
+    try {
+      const rawConfig = await readFile(configPath, "utf8");
+      const parsed = parse(rawConfig) as unknown;
+      
+      if (!isJsonObject(parsed)) {
+        logWarning(`Invalid .agentv/config.yaml format at ${configPath}`);
+        continue;
+      }
+      
+      const guidelinePatterns = parsed.guideline_patterns;
+      if (guidelinePatterns !== undefined && !Array.isArray(guidelinePatterns)) {
+        logWarning(`Invalid guideline_patterns in ${configPath}, expected array`);
+        continue;
+      }
+      
+      if (Array.isArray(guidelinePatterns) && !guidelinePatterns.every((p) => typeof p === "string")) {
+        logWarning(`Invalid guideline_patterns in ${configPath}, all entries must be strings`);
+        continue;
+      }
+      
+      return {
+        guideline_patterns: guidelinePatterns as readonly string[] | undefined,
+      };
+    } catch (error) {
+      logWarning(`Could not read .agentv/config.yaml at ${configPath}: ${(error as Error).message}`);
+      continue;
+    }
   }
   
-  try {
-    const rawConfig = await readFile(configPath, "utf8");
-    const parsed = parse(rawConfig) as unknown;
-    
-    if (!isJsonObject(parsed)) {
-      logWarning(`Invalid .agentv/config.yaml format at ${configPath}`);
-      return null;
-    }
-    
-    const guidelinePatterns = parsed.guideline_patterns;
-    if (guidelinePatterns !== undefined && !Array.isArray(guidelinePatterns)) {
-      logWarning(`Invalid guideline_patterns in ${configPath}, expected array`);
-      return null;
-    }
-    
-    if (Array.isArray(guidelinePatterns) && !guidelinePatterns.every((p) => typeof p === "string")) {
-      logWarning(`Invalid guideline_patterns in ${configPath}, all entries must be strings`);
-      return null;
-    }
-    
-    return {
-      guideline_patterns: guidelinePatterns as readonly string[] | undefined,
-    };
-  } catch (error) {
-    logWarning(`Could not read .agentv/config.yaml at ${configPath}: ${(error as Error).message}`);
-    return null;
-  }
+  return null;
 }
 
 /**
@@ -135,8 +141,8 @@ export async function loadTestCases(
   const repoRootPath = resolveToAbsolutePath(repoRoot);
   const searchRoots = buildSearchRoots(absoluteTestPath, repoRootPath);
 
-  // Load configuration
-  const config = await loadConfig(absoluteTestPath);
+  // Load configuration (walks up directory tree to repo root)
+  const config = await loadConfig(absoluteTestPath, repoRootPath);
   const guidelinePatterns = config?.guideline_patterns;
 
   const rawFile = await readFile(absoluteTestPath, "utf8");

@@ -78,6 +78,12 @@ You are now ready to start development. The monorepo contains:
 
 AgentV automatically detects guideline files (instructions, prompts) and treats them differently from regular file content. You can customize which files are considered guidelines using an optional `.agentv/config.yaml` configuration file.
 
+**Config file discovery:**
+- AgentV searches for `.agentv/config.yaml` starting from the eval file's directory
+- Walks up the directory tree to the repository root
+- Uses the first config file found (similar to how `targets.yaml` is discovered)
+- This allows you to place one config file at the project root for all evals
+
 **Default patterns** (used when `.agentv/config.yaml` is absent):
 
 ```yaml

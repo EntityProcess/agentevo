@@ -35,6 +35,38 @@ export async function findGitRoot(startPath: string): Promise<string | null> {
 }
 
 /**
+ * Build a chain of directories walking from a file's location up to repo root.
+ * Used for discovering configuration files like targets.yaml or config.yaml.
+ */
+export function buildDirectoryChain(filePath: string, repoRoot: string): readonly string[] {
+  const directories: string[] = [];
+  const seen = new Set<string>();
+  const boundary = path.resolve(repoRoot);
+  let current: string | undefined = path.resolve(path.dirname(filePath));
+
+  while (current !== undefined) {
+    if (!seen.has(current)) {
+      directories.push(current);
+      seen.add(current);
+    }
+    if (current === boundary) {
+      break;
+    }
+    const parent = path.dirname(current);
+    if (parent === current) {
+      break;
+    }
+    current = parent;
+  }
+
+  if (!seen.has(boundary)) {
+    directories.push(boundary);
+  }
+
+  return directories;
+}
+
+/**
  * Build search roots for file resolution, matching yaml-parser behavior.
  * Searches from eval file directory up to repo root.
  */

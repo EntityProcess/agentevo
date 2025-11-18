@@ -1,4 +1,5 @@
 import {
+  buildDirectoryChain,
   listTargetNames,
   readTargetDefinitions,
   resolveTargetDefinition,
@@ -42,41 +43,6 @@ export async function readTestSuiteTarget(testFilePath: string): Promise<string 
   return undefined;
 }
 
-function buildDirectoryChain(testFilePath: string, repoRoot: string, cwd: string): readonly string[] {
-  const directories: string[] = [];
-  const seen = new Set<string>();
-  const boundary = path.resolve(repoRoot);
-  let current: string | undefined = path.resolve(path.dirname(testFilePath));
-
-  while (current !== undefined) {
-    if (!seen.has(current)) {
-      directories.push(current);
-      seen.add(current);
-    }
-    if (current === boundary) {
-      break;
-    }
-    const parent = path.dirname(current);
-    if (parent === current) {
-      break;
-    }
-    current = parent;
-  }
-
-  if (!seen.has(boundary)) {
-    directories.push(boundary);
-    seen.add(boundary);
-  }
-
-  const resolvedCwd = path.resolve(cwd);
-  if (!seen.has(resolvedCwd)) {
-    directories.push(resolvedCwd);
-    seen.add(resolvedCwd);
-  }
-
-  return directories;
-}
-
 async function discoverTargetsFile(options: {
   readonly explicitPath?: string;
   readonly testFilePath: string;
@@ -101,7 +67,13 @@ async function discoverTargetsFile(options: {
     throw new Error(`targets.yaml not found at provided path: ${resolvedExplicit}`);
   }
 
-  const directories = buildDirectoryChain(testFilePath, repoRoot, cwd);
+  const directories = [...buildDirectoryChain(testFilePath, repoRoot)];
+  
+  // Also check cwd if not already in chain
+  const resolvedCwd = path.resolve(cwd);
+  if (!directories.includes(resolvedCwd)) {
+    directories.push(resolvedCwd);
+  }
   for (const directory of directories) {
     for (const candidate of TARGET_FILE_CANDIDATES) {
       const fullPath = path.join(directory, candidate);

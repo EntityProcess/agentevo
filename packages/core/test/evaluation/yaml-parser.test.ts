@@ -172,6 +172,67 @@ evalcases:
     expect(testCase.guideline_paths[0]).toContain("coding.instructions.md");
   });
 
+  it("walks up directory tree to find config at repo root", async () => {
+    // Create config at repo root
+    const agentvDir = path.join(testDir, ".agentv");
+    await mkdir(agentvDir, { recursive: true });
+    const configContent = `guideline_patterns:
+  - "**/*.guide.md"
+`;
+    await writeFile(path.join(agentvDir, "config.yaml"), configContent, "utf8");
+
+    // Create nested directory structure for eval file
+    const evalsDir = path.join(testDir, "docs", "evals");
+    await mkdir(evalsDir, { recursive: true });
+
+    // Create guideline file in nested directory
+    const guidelineContent = "# Nested Guideline\nShould use root config.";
+    await writeFile(path.join(evalsDir, "api.guide.md"), guidelineContent, "utf8");
+
+    // Create standard instruction (should NOT match custom pattern from root config)
+    const instructionContent = "# Standard Instruction\nOld format.";
+    await writeFile(path.join(evalsDir, "coding.instructions.md"), instructionContent, "utf8");
+
+    // Create eval file in nested directory
+    const evalContent = `$schema: agentv-eval-v2
+grader: heuristic
+evalcases:
+  - id: test-walk-up
+    outcome: Success
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: api.guide.md
+          - type: file
+            value: coding.instructions.md
+          - type: text
+            value: Apply guidelines
+    expected_messages:
+      - role: assistant
+        content: Done
+`;
+    const evalPath = path.join(evalsDir, "test.eval.yaml");
+    await writeFile(evalPath, evalContent, "utf8");
+
+    // Load test cases
+    const testCases = await loadTestCases(evalPath, repoRoot);
+
+    expect(testCases).toHaveLength(1);
+    const testCase = testCases[0];
+
+    // api.guide.md should be treated as guideline (matches pattern from root config)
+    expect(testCase.guideline_paths).toHaveLength(1);
+    expect(testCase.guideline_paths[0]).toContain("api.guide.md");
+
+    // coding.instructions.md should be treated as regular file (doesn't match root config pattern)
+    expect(testCase.user_segments).toHaveLength(2); // file + text
+    const fileSegment = testCase.user_segments.find(
+      (seg) => seg.type === "file" && typeof seg.path === "string" && seg.path.includes("coding.instructions.md")
+    );
+    expect(fileSegment).toBeDefined();
+  });
+
   it("handles cross-platform paths in patterns", async () => {
     // Create .agentv directory and config with patterns
     const agentvDir = path.join(testDir, ".agentv");

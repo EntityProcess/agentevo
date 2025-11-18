@@ -23,5 +23,19 @@
 - [x] 4.1 Add test: config file with custom glob patterns
 - [x] 4.2 Add test: no config file uses default glob patterns
 - [x] 4.3 Add test: cross-platform path matching (Windows/Unix)
-- [x] 4.4 Add example `.agentv.yaml` to docs/examples/simple/
+- [x] 4.4 Add example `.agentv/config.yaml` to docs/examples/simple/.agentv/
 - [x] 4.5 Update README with glob pattern examples
+
+## 5. Directory Tree Walking (Enhancement)
+
+- [x] 5.1 Add `buildConfigSearchChain()` function to walk directory tree
+- [x] 5.2 Update `loadConfig()` to search from eval dir up to repo root
+- [x] 5.3 Make config discovery consistent with targets.yaml behavior
+- [x] 5.4 Add test: config at repo root discovered from nested eval
+- [x] 5.5 Update README to document tree-walking behavior
+
+## 6. Bundling Fix
+
+- [x] 6.1 Mark micromatch as external in CLI tsup config
+- [x] 6.2 Add micromatch as runtime dependency in apps/cli/package.json
+- [x] 6.3 Verify CLI works with external micromatch
