@@ -173,7 +173,7 @@ export interface TestCase {
  * Evaluator scorecard for a single test case run.
  */
 export interface EvaluationResult {
-  readonly test_id: string;
+  readonly eval_id: string;
   readonly conversation_id?: string;
   readonly score: number;
   readonly hits: readonly string[];

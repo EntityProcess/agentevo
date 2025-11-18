@@ -244,7 +244,7 @@ The system SHALL provide a command-line interface matching Python bbeval's UX.
 
 #### Scenario: Test ID filter
 
-- **WHEN** the user provides `--test-id <id>`
+- **WHEN** the user provides `--eval-id <id>`
 - **THEN** the system executes only the test case with the matching ID
 
 #### Scenario: Output file specification

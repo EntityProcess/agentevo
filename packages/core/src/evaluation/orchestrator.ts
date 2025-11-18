@@ -39,7 +39,7 @@ export interface RunTestCaseOptions {
 
 export interface ProgressEvent {
   readonly workerId: number;
-  readonly testId: string;
+  readonly evalId: string;
   readonly status: "pending" | "running" | "completed" | "failed";
   readonly startedAt?: number;
   readonly completedAt?: number;
@@ -60,7 +60,7 @@ export interface RunEvaluationOptions {
   readonly cache?: EvaluationCache;
   readonly useCache?: boolean;
   readonly now?: () => Date;
-  readonly testId?: string;
+  readonly evalId?: string;
   readonly verbose?: boolean;
   readonly maxConcurrency?: number;
   readonly onResult?: (result: EvaluationResult) => MaybePromise<void>;
@@ -82,7 +82,7 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
     cache,
     useCache,
     now,
-    testId,
+    evalId,
     verbose,
     onResult,
     onProgress,
@@ -91,10 +91,10 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
   const load = loadTestCases;
   const testCases = await load(testFilePath, repoRoot, { verbose });
 
-  const filteredTestCases = filterTestCases(testCases, testId);
+  const filteredTestCases = filterTestCases(testCases, evalId);
   if (filteredTestCases.length === 0) {
-    if (testId) {
-      throw new Error(`Test case with id '${testId}' not found in ${testFilePath}`);
+    if (evalId) {
+      throw new Error(`Test case with id '${evalId}' not found in ${testFilePath}`);
     }
     return [];
   }
@@ -153,7 +153,7 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
     for (let i = 0; i < filteredTestCases.length; i++) {
       await onProgress({
         workerId: i + 1,
-        testId: filteredTestCases[i].id,
+        evalId: filteredTestCases[i].id,
         status: "pending",
       });
     }
@@ -165,19 +165,19 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
 
   // Track worker assignments for progress reporting
   let nextWorkerId = 1;
-  const workerIdByTestId = new Map<string, number>();
+  const workerIdByEvalId = new Map<string, number>();
 
   // Map test cases to limited promises for parallel execution
   const promises = filteredTestCases.map((testCase) =>
     limit(async () => {
       // Assign worker ID when test starts executing
       const workerId = nextWorkerId++;
-      workerIdByTestId.set(testCase.id, workerId);
+      workerIdByEvalId.set(testCase.id, workerId);
 
       if (onProgress) {
         await onProgress({
           workerId,
-          testId: testCase.id,
+          evalId: testCase.id,
           status: "running",
           startedAt: Date.now(),
         });
@@ -202,7 +202,7 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
         if (onProgress) {
           await onProgress({
             workerId,
-            testId: testCase.id,
+            evalId: testCase.id,
             status: "completed",
             startedAt: 0, // Not used for completed status
             completedAt: Date.now(),
@@ -217,7 +217,7 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
         if (onProgress) {
           await onProgress({
             workerId,
-            testId: testCase.id,
+            evalId: testCase.id,
             status: "failed",
             completedAt: Date.now(),
             error: error instanceof Error ? error.message : String(error),
@@ -357,7 +357,7 @@ export async function runTestCase(options: RunTestCaseOptions): Promise<Evaluati
   } as JsonObject;
 
   return {
-    test_id: testCase.id,
+    eval_id: testCase.id,
     conversation_id: testCase.conversation_id,
     score: grade.score,
     hits: grade.hits,
@@ -373,11 +373,11 @@ export async function runTestCase(options: RunTestCaseOptions): Promise<Evaluati
   } satisfies EvaluationResult;
 }
 
-function filterTestCases(testCases: readonly TestCase[], testId?: string): readonly TestCase[] {
-  if (!testId) {
+function filterTestCases(testCases: readonly TestCase[], evalId?: string): readonly TestCase[] {
+  if (!evalId) {
     return testCases;
   }
-  return testCases.filter((testCase) => testCase.id === testId);
+  return testCases.filter((testCase) => testCase.id === evalId);
 }
 
 function buildGraderRegistry(
@@ -414,7 +414,7 @@ async function dumpPrompt(
 
   await mkdir(path.dirname(filePath), { recursive: true });
   const payload = {
-    test_id: testCase.id,
+    eval_id: testCase.id,
     request: promptInputs.request,
     guidelines: promptInputs.guidelines,
     guideline_paths: testCase.guideline_paths,
@@ -490,7 +490,7 @@ function buildErrorResult(
   } as JsonObject;
 
   return {
-    test_id: testCase.id,
+    eval_id: testCase.id,
     conversation_id: testCase.conversation_id,
     score: 0,
     hits: [],

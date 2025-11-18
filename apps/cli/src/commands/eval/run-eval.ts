@@ -28,7 +28,7 @@ interface RunEvalCommandInput {
 interface NormalizedOptions {
   readonly target?: string;
   readonly targetsPath?: string;
-  readonly testId?: string;
+  readonly evalId?: string;
   readonly workers?: number;
   readonly outPath?: string;
   readonly format: OutputFormat;
@@ -77,7 +77,7 @@ function normalizeOptions(rawOptions: Record<string, unknown>): NormalizedOption
   return {
     target: normalizeString(rawOptions.target),
     targetsPath: normalizeString(rawOptions.targets),
-    testId: normalizeString(rawOptions.testId),
+    evalId: normalizeString(rawOptions.evalId),
     workers: workers > 0 ? workers : undefined,
     outPath: normalizeString(rawOptions.out),
     format,
@@ -257,7 +257,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
       promptDumpDir,
       cache,
       useCache: options.cache,
-      testId: options.testId,
+      evalId: options.evalId,
       verbose: options.verbose,
       maxConcurrency: resolvedWorkers,
       onResult: async (result: EvaluationResult) => {
@@ -271,7 +271,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
         }
         progressDisplay.updateWorker({
           workerId: event.workerId,
-          testId: event.testId,
+          evalId: event.evalId,
           status: event.status,
           startedAt: event.startedAt,
           completedAt: event.completedAt,

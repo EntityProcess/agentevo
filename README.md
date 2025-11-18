@@ -139,7 +139,7 @@ agentv eval --target vscode_projectx "path/to/test.yaml"
 Run a specific test case with custom targets path:
 
 ```bash
-agentv eval --target vscode_projectx --targets "path/to/targets.yaml" --test-id "my-test-case" "path/to/test.yaml"
+agentv eval --target vscode_projectx --targets "path/to/targets.yaml" --eval-id "my-test-case" "path/to/test.yaml"
 ```
 
 ### Command Line Options
@@ -147,7 +147,7 @@ agentv eval --target vscode_projectx --targets "path/to/targets.yaml" --test-id 
 - `test_file`: Path to test YAML file (required, positional argument)
 - `--target TARGET`: Execution target name from targets.yaml (overrides target specified in test file)
 - `--targets TARGETS`: Path to targets.yaml file (default: ./.agentv/targets.yaml)
-- `--test-id TEST_ID`: Run only the test case with this specific ID
+- `--eval-id EVAL_ID`: Run only the test case with this specific ID
 - `--out OUTPUT_FILE`: Output file path (default: results/{testname}_{timestamp}.jsonl)
 - `--format FORMAT`: Output format: 'jsonl' or 'yaml' (default: jsonl)
 - `--dry-run`: Run with mock model for testing
@@ -296,7 +296,7 @@ AgentV uses an AI-powered quality grader that:
 **JSONL format (default):**
 
 - One JSON object per line (newline-delimited)
-- Fields: `test_id`, `score`, `hits`, `misses`, `model_answer`, `expected_aspect_count`, `target`, `timestamp`, `reasoning`, `raw_request`, `grader_raw_request`
+- Fields: `eval_id`, `score`, `hits`, `misses`, `model_answer`, `expected_aspect_count`, `target`, `timestamp`, `reasoning`, `raw_request`, `grader_raw_request`
 
 **YAML format (with `--format yaml`):**
 

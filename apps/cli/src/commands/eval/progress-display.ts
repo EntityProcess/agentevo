@@ -2,7 +2,7 @@ import logUpdate from "log-update";
 
 export interface WorkerProgress {
   workerId: number;
-  testId: string;
+  evalId: string;
   status: "pending" | "running" | "completed" | "failed";
   startedAt?: number;
   completedAt?: number;
@@ -45,9 +45,9 @@ export class ProgressDisplay {
     } else {
       // In non-interactive mode, just print completion events
       if (progress.status === "completed") {
-        console.log(`✓ Test ${progress.testId} completed`);
+        console.log(`✓ Test ${progress.evalId} completed`);
       } else if (progress.status === "failed") {
-        console.log(`✗ Test ${progress.testId} failed${progress.error ? `: ${progress.error}` : ""}`);
+        console.log(`✗ Test ${progress.evalId} failed${progress.error ? `: ${progress.error}` : ""}`);
       }
     }
   }
@@ -96,7 +96,7 @@ export class ProgressDisplay {
     const elapsed = worker.startedAt ? this.formatElapsed(Date.now() - worker.startedAt) : "";
     const timeLabel = elapsed ? ` (${elapsed})` : "";
 
-    let testLabel = worker.testId;
+    let testLabel = worker.evalId;
     if (testLabel.length > 50) {
       testLabel = testLabel.substring(0, 47) + "...";
     }
