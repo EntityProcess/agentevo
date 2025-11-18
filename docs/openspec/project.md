@@ -53,7 +53,6 @@ AgentV is an evaluation framework for AI agents and prompts, currently focused o
 
 - **Node.js**: v20.0.0+
 - **Package Manager**: pnpm only
-- **Migration in Progress**: Porting from Python (bbeval) to TypeScript
 
 ## Dependencies
 

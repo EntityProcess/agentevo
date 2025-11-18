@@ -6,7 +6,7 @@ import { dispatchAgentSession, getSubagentRoot, provisionSubagents } from "subag
 import type { VSCodeResolvedConfig } from "./targets.js";
 import type { Provider, ProviderRequest, ProviderResponse } from "./types.js";
 
-const PROMPT_FILE_PREFIX = "bbeval-vscode-";
+const PROMPT_FILE_PREFIX = "agentv-vscode-";
 
 export class VSCodeProvider implements Provider {
   readonly id: string;
@@ -94,7 +94,7 @@ function buildPromptDocument(
     parts.push(buildMandatoryPrereadBlock(instructionFiles));
   }
 
-  parts.push(`# BbEval Request`);
+  parts.push(`# AgentV Request`);
   if (request.testCaseId) {
     parts.push(`- Test Case: ${request.testCaseId}`);
   }

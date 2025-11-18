@@ -13,8 +13,8 @@ function parseInteger(value: string, fallback: number): number {
 export function registerEvalCommand(program: Command): Command {
   program
     .command("eval")
-    .description("Run BbEval test suites and report results")
-    .argument("<test-file>", "Path to the evaluation .test.yaml file")
+    .description("Run eval suites and report results")
+    .argument("<eval-file>", "Path to the evaluation .yaml file")
     .option("--target <name>", "Override target name from targets.yaml", "default")
     .option("--targets <path>", "Path to targets.yaml (overrides discovery)")
     .option("--test-id <id>", "Run only the test case with this identifier")

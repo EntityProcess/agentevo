@@ -15,8 +15,6 @@ const TARGET_FILE_CANDIDATES = [
   "targets.yml",
   path.join(".agentv", "targets.yaml"),
   path.join(".agentv", "targets.yml"),
-  path.join(".bbeval", "targets.yaml"),
-  path.join(".bbeval", "targets.yml"),
 ];
 
 async function fileExists(filePath: string): Promise<boolean> {

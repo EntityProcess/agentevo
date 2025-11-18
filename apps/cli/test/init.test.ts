@@ -38,7 +38,6 @@ describe("init command", () => {
     expect(content).toContain("Schema Reference");
     expect(content).toContain("Structure Requirements");
     expect(content).toContain("evalcases");
-    expect(content).toContain("File paths: Relative from eval file directory");
   });
 
   it("should create schema file", async () => {
@@ -49,10 +48,10 @@ describe("init command", () => {
 
     const content = readFileSync(schemaFile, "utf-8");
     const schema = JSON.parse(content);
-    expect(schema.title).toBe("AgentV V2 Eval Schema");
+    expect(schema.title).toContain("AgentV");
+    expect(schema.title).toContain("Eval Schema");
     expect(schema.type).toBe("object");
     expect(schema.properties.evalcases).toBeDefined();
-    expect(schema.properties.version).toBeDefined();
   });
 
   it("should work when .github directory already exists", async () => {

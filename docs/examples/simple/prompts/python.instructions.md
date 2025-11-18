@@ -1,5 +1,5 @@
 ---
-description: 'Domain-specific Python requirements for bbeval testing'
+description: 'Domain-specific Python requirements'
 applyTo: '**/*.py'
 ---
 

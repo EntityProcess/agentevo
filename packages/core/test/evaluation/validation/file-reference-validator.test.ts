@@ -3,12 +3,27 @@ import { validateFileReferences } from "../../../src/evaluation/validation/file-
 import { writeFile, mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { tmpdir } from "node:os";
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
+
+const execAsync = promisify(exec);
 
 describe("file-reference-validator", () => {
   const testDir = path.join(tmpdir(), `agentv-test-fileref-${Date.now()}`);
 
   async function createTestFile(filename: string, content: string): Promise<string> {
     await mkdir(testDir, { recursive: true });
+    
+    // Initialize git repo if not already done
+    try {
+      await execAsync("git rev-parse --git-dir", { cwd: testDir });
+    } catch {
+      // Git repo doesn't exist, initialize it
+      await execAsync("git init", { cwd: testDir });
+      await execAsync('git config user.email "test@example.com"', { cwd: testDir });
+      await execAsync('git config user.name "Test User"', { cwd: testDir });
+    }
+    
     const filePath = path.join(testDir, filename);
     await writeFile(filePath, content, "utf8");
     return filePath;
@@ -99,7 +114,7 @@ evalcases:
         content: "Response"
 `;
       const filePath = await createTestFile("test.yaml", evalContent);
-      const errors = await validateFileReferences(filePath, { strict: true });
+      const errors = await validateFileReferences(filePath);
       
       expect(errors).toEqual(
         expect.arrayContaining([

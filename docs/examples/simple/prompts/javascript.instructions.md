@@ -1,5 +1,5 @@
 ---
-description: 'Domain-specific Javascript requirements for bbeval testing'
+description: 'Domain-specific Javascript requirements'
 applyTo: '**/*.js'
 ---
 

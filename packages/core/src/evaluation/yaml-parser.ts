@@ -27,7 +27,7 @@ export function isGuidelineFile(filePath: string): boolean {
 }
 
 /**
- * Extract fenced code blocks from BbEval user segments.
+ * Extract fenced code blocks from AgentV user segments.
  */
 export function extractCodeBlocks(segments: readonly JsonObject[]): readonly string[] {
   const codeBlocks: string[] = [];
@@ -70,7 +70,7 @@ type RawTestCase = JsonObject & {
 };
 
 /**
- * Load test cases from a BbEval YAML specification file.
+ * Load eval cases from a AgentV YAML specification file.
  */
 export async function loadTestCases(
   testFilePath: string,
@@ -226,7 +226,7 @@ export async function loadTestCases(
 
     const codeSnippets = extractCodeBlocks(userSegments);
     const assistantContent = assistantMessages[0]?.content;
-    const expectedAssistantRaw = normalizeAssistantContent(assistantContent);
+    const expectedAssistantRaw = await resolveAssistantContent(assistantContent, searchRoots, verbose);
     const userTextPrompt = userTextParts
       .map((part) => part.trim())
       .filter((part) => part.length > 0)
@@ -396,6 +396,86 @@ function normalizeAssistantContent(content: TestMessage["content"] | undefined):
       parts.push(valueValue);
       continue;
     }
+    parts.push(JSON.stringify(entry));
+  }
+  return parts.join(" ");
+}
+
+/**
+ * Resolve assistant content including file references.
+ * Similar to input message processing, but for expected assistant responses.
+ */
+async function resolveAssistantContent(
+  content: TestMessage["content"] | undefined,
+  searchRoots: readonly string[],
+  verbose: boolean,
+): Promise<string> {
+  if (typeof content === "string") {
+    return content;
+  }
+  if (!content) {
+    return "";
+  }
+  
+  const parts: string[] = [];
+  for (const entry of content) {
+    if (typeof entry === "string") {
+      parts.push(entry);
+      continue;
+    }
+    
+    if (!isJsonObject(entry)) {
+      continue;
+    }
+    
+    const segmentType = asString(entry.type);
+    
+    // Handle file references
+    if (segmentType === "file") {
+      const rawValue = asString(entry.value);
+      if (!rawValue) {
+        continue;
+      }
+      
+      const { displayPath, resolvedPath, attempted } = await resolveFileReference(
+        rawValue,
+        searchRoots,
+      );
+      
+      if (!resolvedPath) {
+        const attempts = attempted.length
+          ? ["  Tried:", ...attempted.map((candidate) => `    ${candidate}`)]
+          : undefined;
+        logWarning(`File not found in expected_messages: ${displayPath}`, attempts);
+        continue;
+      }
+      
+      try {
+        const fileContent = (await readFile(resolvedPath, "utf8")).replace(/\r\n/g, "\n");
+        parts.push(fileContent);
+        if (verbose) {
+          console.log(`  [Expected Assistant File] Found: ${displayPath}`);
+          console.log(`    Resolved to: ${resolvedPath}`);
+        }
+      } catch (error) {
+        logWarning(`Could not read file ${resolvedPath}: ${(error as Error).message}`);
+      }
+      continue;
+    }
+    
+    // Handle text segments
+    const textValue = asString(entry.text);
+    if (typeof textValue === "string") {
+      parts.push(textValue);
+      continue;
+    }
+    
+    const valueValue = asString(entry.value);
+    if (typeof valueValue === "string") {
+      parts.push(valueValue);
+      continue;
+    }
+    
     parts.push(JSON.stringify(entry));
   }
   return parts.join(" ");

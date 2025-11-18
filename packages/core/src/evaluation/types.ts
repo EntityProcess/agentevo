@@ -1,5 +1,5 @@
 /**
- * JSON primitive values appearing in BbEval payloads.
+ * JSON primitive values appearing in AgentV payloads.
  */
 export type JsonPrimitive = string | number | boolean | null;
 
@@ -83,7 +83,7 @@ export function isTestMessageRole(value: unknown): value is TestMessageRole {
 }
 
 /**
- * Guard matching BbEval JSON objects.
+ * Guard matching AgentV JSON objects.
  */
 export function isJsonObject(value: unknown): value is JsonObject {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -93,7 +93,7 @@ export function isJsonObject(value: unknown): value is JsonObject {
 }
 
 /**
- * Guard matching BbEval JSON values.
+ * Guard matching AgentV JSON values.
  */
 export function isJsonValue(value: unknown): value is JsonValue {
   if (
@@ -155,7 +155,7 @@ export function isGraderKind(value: unknown): value is GraderKind {
 }
 
 /**
- * Test case definition sourced from BbEval specs.
+ * Test case definition sourced from AgentV specs.
  */
 export interface TestCase {
   readonly id: string;

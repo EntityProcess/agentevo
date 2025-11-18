@@ -158,7 +158,7 @@ describe("runTestCase", () => {
   });
 
   it("dumps prompt payloads when directory provided", async () => {
-    const directory = mkdtempSync(path.join(tmpdir(), "bbeval-prompts-"));
+    const directory = mkdtempSync(path.join(tmpdir(), "agentv-prompts-"));
     const provider = new SequenceProvider("mock", {
       responses: [{ text: "Add structured logging." }],
     });
