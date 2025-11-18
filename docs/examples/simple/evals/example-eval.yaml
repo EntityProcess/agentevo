@@ -1,14 +1,13 @@
-# AgentV V2 Eval Schema Example
-# Demonstrates all V2 schema features with real file references and minimal redundancy
+# AgentV Eval Schema Example
+# Demonstrates schema features with real file references and minimal redundancy
 
 $schema: agentv-eval-v2
-description: V2 schema example showing basic features, conversation threading, multiple evaluators, and ACE optimization
+description: Example showing basic features, conversation threading, multiple evaluators, and ACE optimization
 
 # File-level default target (optional)
 # Can be overridden per eval case via execution.target
 target: default
 
-# V2 Schema: Use 'evalcases' instead of 'testcases' (V1)
 evalcases:
   # ==========================================
   # Example 1: Basic V2 features with file references
@@ -19,7 +18,6 @@ evalcases:
     outcome: |
       Assistant provides helpful code analysis and mentions SUPERSECRET_INSTRUCTION_MARKER_JAVASCRIPT
     
-    # V2 Schema: Use 'input_messages' instead of 'messages' (V1)
     input_messages:
       - role: system
         content: You are an expert software developer who provides clear, concise code reviews.
@@ -45,7 +43,6 @@ evalcases:
           - type: file
             value: ../prompts/javascript.instructions.md
     
-    # V2 Schema: Use 'expected_messages' instead of inline assistant message in V1
     expected_messages:
       - role: assistant
         content: |-
@@ -73,7 +70,6 @@ evalcases:
     outcome: |
       AI generates correct Python function with proper error handling, type hints, and mentions SUPERSECRET_INSTRUCTION_MARKER_PYTHON
     
-    # V2 Schema: Execution block for per-case configuration
     execution:
       # Override file-level target for this specific eval case
       target: azure_base

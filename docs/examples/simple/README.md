@@ -1,13 +1,13 @@
-# Simple Example - AgentV V2 Schema
+# Simple Example - AgentV Schema
 
-This directory demonstrates AgentV's V2 eval schema with complete, working examples.
+This directory demonstrates AgentV's eval schema with complete, working examples.
 
 ## Directory Structure
 
 ```
 simple/
 ├── evals/                          # Evaluation test cases
-│   ├── example-eval.yaml        # Main V2 schema example
+│   ├── example-eval.yaml        # Main schema example
 │   └── *.yaml                 # Additional eval files
 ├── evaluators/                     # Evaluator components
 │   ├── prompts/                    # LLM judge prompt templates
@@ -29,7 +29,7 @@ simple/
 
 ### Evaluation Files (`evals/`)
 
-- **`example-eval.yaml`**: Complete V2 schema demonstration showing:
+- **`example-eval.yaml`**: Complete schema demonstration showing:
   - Basic features: `input_messages`, `expected_messages`
   - File references and content blocks
   - Conversation threading with `conversation_id`
@@ -84,20 +84,10 @@ agentv eval evals/example-eval.yaml --target azure_base
 agentv optimize optimizers/ace-code-generation.yaml
 ```
 
-## V2 Schema Features
+## Key Features
 
 ### 1. Clear Message Separation
 
-**V1 (deprecated)**:
-```yaml
-messages:  # Mixed input and expected output
-  - role: user
-    content: "Request"
-  - role: assistant  # This was the expected output
-    content: "Expected response"
-```
-
-**V2**:
 ```yaml
 input_messages:  # Input only
   - role: user
@@ -106,6 +96,8 @@ expected_messages:  # Expected output only
   - role: assistant
     content: "Expected response"
 ```
+
+### 2. Multiple Evaluators
 
 ```yaml
 execution:
@@ -116,8 +108,6 @@ execution:
     - name: semantic_correctness
       type: llm_judge
       prompt: ../evaluators/prompts/code-correctness-judge.md
-      model: gpt-4
-```   prompt: ./templates/code-correctness-judge.md
       model: gpt-4
 ```
 
@@ -243,20 +233,10 @@ ACE (Automatic Cognitive Enhancement) uses a Generator → Reflector → Curator
 - Split into multiple specialized playbooks for different contexts
 - Consider custom RAG implementation (not built into ACE)
 
-## Migration from V1
-
-Key changes when updating existing eval files:
-
-1. Rename `testcases` → `evalcases`
-2. Split `messages` into `input_messages` + `expected_messages`
-3. Move optimization config to separate `optimizers/*.yaml` files
-4. Optional: Add `conversation_id` for related cases
-5. Optional: Add multiple evaluators in `execution.evaluators`
-
 ## Next Steps
 
 - Review `example-eval.yaml` to understand the schema
-- Create your own eval cases following the V2 format
+- Create your own eval cases following the schema
 - Write custom evaluator scripts for domain-specific validation
 - Create LLM judge templates for semantic evaluation
 - Set up optimizer configs when ready to improve prompts
@@ -264,5 +244,5 @@ Key changes when updating existing eval files:
 ## Resources
 
 - [AgentV Documentation](../../../README.md)
-- [V2 Schema Specification](../../openspec/changes/update-eval-schema-v2/)
+- [Schema Specification](../../openspec/changes/update-eval-schema-v2/)
 - [Ax ACE Documentation](https://github.com/ax-llm/ax/blob/main/docs/ACE.md)
