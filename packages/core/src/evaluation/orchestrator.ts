@@ -354,6 +354,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     request: promptInputs.request,
     guidelines: promptInputs.guidelines,
     guideline_paths: evalCase.guideline_paths,
+    system_message: promptInputs.systemMessage ?? "",
   } as JsonObject;
 
   return {
@@ -436,7 +437,7 @@ async function invokeProvider(
   options: {
     readonly evalCase: EvalCase;
     readonly target: ResolvedTarget;
-    readonly promptInputs: { readonly request: string; readonly guidelines: string };
+    readonly promptInputs: { readonly request: string; readonly guidelines: string; readonly systemMessage?: string };
     readonly attempt: number;
     readonly agentTimeoutMs?: number;
     readonly signal?: AbortSignal;
@@ -463,6 +464,7 @@ async function invokeProvider(
       metadata: {
         target: target.name,
         grader: evalCase.grader,
+        systemPrompt: promptInputs.systemMessage ?? "",
       },
       signal: controller.signal,
     });
@@ -478,7 +480,7 @@ function buildErrorResult(
   targetName: string,
   timestamp: Date,
   error: unknown,
-  promptInputs: { readonly request: string; readonly guidelines: string },
+  promptInputs: { readonly request: string; readonly guidelines: string; readonly systemMessage?: string },
 ): EvaluationResult {
   const message = error instanceof Error ? error.message : String(error);
 
@@ -486,6 +488,7 @@ function buildErrorResult(
     request: promptInputs.request,
     guidelines: promptInputs.guidelines,
     guideline_paths: evalCase.guideline_paths,
+    system_message: promptInputs.systemMessage ?? "",
     error: message,
   } as JsonObject;
 
@@ -508,7 +511,7 @@ function createCacheKey(
   provider: Provider,
   target: ResolvedTarget,
   evalCase: EvalCase,
-  promptInputs: { readonly request: string; readonly guidelines: string },
+  promptInputs: { readonly request: string; readonly guidelines: string; readonly systemMessage?: string },
 ): string {
   const hash = createHash("sha256");
   hash.update(provider.id);
@@ -516,6 +519,7 @@ function createCacheKey(
   hash.update(evalCase.id);
   hash.update(promptInputs.request);
   hash.update(promptInputs.guidelines);
+  hash.update(promptInputs.systemMessage ?? "");
   return hash.digest("hex");
 }
 

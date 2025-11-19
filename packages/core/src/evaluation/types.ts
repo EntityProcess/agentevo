@@ -162,6 +162,7 @@ export interface EvalCase {
   readonly conversation_id?: string;
   readonly task: string;
   readonly user_segments: readonly JsonObject[];
+  readonly system_message?: string;
   readonly expected_assistant_raw: string;
   readonly guideline_paths: readonly string[];
   readonly code_snippets: readonly string[];
