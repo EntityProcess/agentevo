@@ -302,6 +302,7 @@ export async function loadEvalCases(
                 type: "file",
                 path: displayPath,
                 text: fileContent,
+                resolvedPath: path.resolve(resolvedPath),
               });
               if (verbose) {
                 console.log(`  [File] Found: ${displayPath}`);
@@ -333,6 +334,20 @@ export async function loadEvalCases(
 
     const testCaseGrader = coerceGrader(evalcase.grader) ?? globalGrader;
 
+    // Extract file paths from user_segments (non-guideline files)
+    const userFilePaths: string[] = [];
+    for (const segment of userSegments) {
+      if (segment.type === "file" && typeof segment.resolvedPath === "string") {
+        userFilePaths.push(segment.resolvedPath);
+      }
+    }
+
+    // Combine all file paths (guidelines + regular files)
+    const allFilePaths = [
+      ...guidelinePaths.map((guidelinePath) => path.resolve(guidelinePath)),
+      ...userFilePaths,
+    ];
+
     const testCase: EvalCase = {
       id,
       conversation_id: conversationId,
@@ -341,6 +356,7 @@ export async function loadEvalCases(
       system_message: systemMessageContent,
       expected_assistant_raw: expectedAssistantRaw,
       guideline_paths: guidelinePaths.map((guidelinePath) => path.resolve(guidelinePath)),
+      file_paths: allFilePaths,
       code_snippets: codeSnippets,
       outcome,
       grader: testCaseGrader,
