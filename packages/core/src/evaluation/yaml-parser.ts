@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 
 import { buildDirectoryChain, buildSearchRoots, resolveFileReference } from "./file-utils.js";
-import type { GraderKind, JsonObject, JsonValue, TestCase, TestMessage } from "./types.js";
+import type { GraderKind, JsonObject, JsonValue, EvalCase, TestMessage } from "./types.js";
 import { isGraderKind, isJsonObject, isTestMessage } from "./types.js";
 
 const CODE_BLOCK_PATTERN = /```[\s\S]*?```/g;
@@ -139,7 +139,7 @@ export async function loadEvalCases(
   evalFilePath: string,
   repoRoot: URL | string,
   options?: LoadOptions,
-): Promise<readonly TestCase[]> {
+): Promise<readonly EvalCase[]> {
   const verbose = options?.verbose ?? false;
   const absoluteTestPath = path.resolve(evalFilePath);
   if (!(await fileExists(absoluteTestPath))) {
@@ -178,7 +178,7 @@ export async function loadEvalCases(
   }
 
   const globalGrader = coerceGrader(suite.grader) ?? "llm_judge";
-  const results: TestCase[] = [];
+  const results: EvalCase[] = [];
 
   for (const rawEvalcase of rawTestcases) {
     if (!isJsonObject(rawEvalcase)) {
@@ -305,7 +305,7 @@ export async function loadEvalCases(
 
     const testCaseGrader = coerceGrader(evalcase.grader) ?? globalGrader;
 
-    const testCase: TestCase = {
+    const testCase: EvalCase = {
       id,
       conversation_id: conversationId,
       task: userTextPrompt,
@@ -339,7 +339,7 @@ export async function loadEvalCases(
  * Build prompt inputs by consolidating user request context and guideline content.
  */
 export async function buildPromptInputs(
-  testCase: TestCase,
+  testCase: EvalCase,
 ): Promise<{ request: string; guidelines: string }> {
   const guidelineContents: string[] = [];
   for (const rawPath of testCase.guideline_paths) {

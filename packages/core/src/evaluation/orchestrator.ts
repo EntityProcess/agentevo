@@ -12,7 +12,7 @@ import {
 import { createProvider } from "./providers/index.js";
 import { resolveTargetDefinition, type ResolvedTarget } from "./providers/targets.js";
 import type { EnvLookup, Provider, ProviderResponse, TargetDefinition } from "./providers/types.js";
-import type { EvaluationResult, JsonObject, TestCase } from "./types.js";
+import type { EvaluationResult, JsonObject, EvalCase } from "./types.js";
 import { buildPromptInputs, loadEvalCases } from "./yaml-parser.js";
 
 type MaybePromise<T> = T | Promise<T>;
@@ -22,8 +22,8 @@ export interface EvaluationCache {
   set(key: string, value: ProviderResponse): MaybePromise<void>;
 }
 
-export interface RunTestCaseOptions {
-  readonly testCase: TestCase;
+export interface RunEvalCaseOptions {
+  readonly evalCase: EvalCase;
   readonly provider: Provider;
   readonly target: ResolvedTarget;
   readonly graders: Partial<Record<string, Grader>>;
@@ -89,10 +89,10 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
   } = options;
 
   const load = loadEvalCases;
-  const testCases = await load(testFilePath, repoRoot, { verbose });
+  const evalCases = await load(testFilePath, repoRoot, { verbose });
 
-  const filteredTestCases = filterTestCases(testCases, evalId);
-  if (filteredTestCases.length === 0) {
+  const filteredEvalCases = filterEvalCases(evalCases, evalId);
+  if (filteredEvalCases.length === 0) {
     if (evalId) {
       throw new Error(`Test case with id '${evalId}' not found in ${testFilePath}`);
     }
@@ -148,12 +148,12 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
   const primaryProvider = getOrCreateProvider(target);
 
   // Notify about total test count before starting
-  if (onProgress && filteredTestCases.length > 0) {
+  if (onProgress && filteredEvalCases.length > 0) {
     // Emit initial pending events for all tests
-    for (let i = 0; i < filteredTestCases.length; i++) {
+    for (let i = 0; i < filteredEvalCases.length; i++) {
       await onProgress({
         workerId: i + 1,
-        evalId: filteredTestCases[i].id,
+        evalId: filteredEvalCases[i].id,
         status: "pending",
       });
     }
@@ -168,16 +168,16 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
   const workerIdByEvalId = new Map<string, number>();
 
   // Map test cases to limited promises for parallel execution
-  const promises = filteredTestCases.map((testCase) =>
+  const promises = filteredEvalCases.map((evalCase) =>
     limit(async () => {
       // Assign worker ID when test starts executing
       const workerId = nextWorkerId++;
-      workerIdByEvalId.set(testCase.id, workerId);
+      workerIdByEvalId.set(evalCase.id, workerId);
 
       if (onProgress) {
         await onProgress({
           workerId,
-          evalId: testCase.id,
+          evalId: evalCase.id,
           status: "running",
           startedAt: Date.now(),
         });
@@ -185,8 +185,8 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
 
       try {
         const judgeProvider = await resolveJudgeProvider(target);
-        const result = await runTestCase({
-          testCase,
+        const result = await runEvalCase({
+          evalCase: evalCase,
           provider: primaryProvider,
           target,
           graders: graderRegistry,
@@ -202,7 +202,7 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
         if (onProgress) {
           await onProgress({
             workerId,
-            evalId: testCase.id,
+            evalId: evalCase.id,
             status: "completed",
             startedAt: 0, // Not used for completed status
             completedAt: Date.now(),
@@ -217,7 +217,7 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
         if (onProgress) {
           await onProgress({
             workerId,
-            evalId: testCase.id,
+            evalId: evalCase.id,
             status: "failed",
             completedAt: Date.now(),
             error: error instanceof Error ? error.message : String(error),
@@ -239,10 +239,10 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
       results.push(outcome.value);
     } else {
       // Build error result for rejected promise
-      const testCase = filteredTestCases[i];
-      const promptInputs = await buildPromptInputs(testCase);
+      const evalCase = filteredEvalCases[i];
+      const promptInputs = await buildPromptInputs(evalCase);
       const errorResult = buildErrorResult(
-        testCase,
+        evalCase,
         target.name,
         (now ?? (() => new Date()))(),
         outcome.reason,
@@ -258,9 +258,9 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
   return results;
 }
 
-export async function runTestCase(options: RunTestCaseOptions): Promise<EvaluationResult> {
+export async function runEvalCase(options: RunEvalCaseOptions): Promise<EvaluationResult> {
   const {
-    testCase,
+    evalCase: evalCase,
     provider,
     target,
     graders,
@@ -274,12 +274,12 @@ export async function runTestCase(options: RunTestCaseOptions): Promise<Evaluati
     judgeProvider,
   } = options;
 
-  const promptInputs = await buildPromptInputs(testCase);
+  const promptInputs = await buildPromptInputs(evalCase);
   if (promptDumpDir) {
-    await dumpPrompt(promptDumpDir, testCase, promptInputs);
+    await dumpPrompt(promptDumpDir, evalCase, promptInputs);
   }
 
-  const cacheKey = useCache ? createCacheKey(provider, target, testCase, promptInputs) : undefined;
+  const cacheKey = useCache ? createCacheKey(provider, target, evalCase, promptInputs) : undefined;
   let cachedResponse: ProviderResponse | undefined;
   if (cacheKey && cache) {
     cachedResponse = await cache.get(cacheKey);
@@ -295,7 +295,7 @@ export async function runTestCase(options: RunTestCaseOptions): Promise<Evaluati
   while (!providerResponse && attempt < attemptBudget) {
     try {
       providerResponse = await invokeProvider(provider, {
-        testCase,
+        evalCase: evalCase,
         target,
         promptInputs,
         attempt,
@@ -308,13 +308,13 @@ export async function runTestCase(options: RunTestCaseOptions): Promise<Evaluati
         attempt += 1;
         continue;
       }
-      return buildErrorResult(testCase, target.name, nowFn(), error, promptInputs);
+      return buildErrorResult(evalCase, target.name, nowFn(), error, promptInputs);
     }
   }
 
   if (!providerResponse) {
     return buildErrorResult(
-      testCase,
+      evalCase,
       target.name,
       nowFn(),
       lastError ?? new Error("Provider did not return a response"),
@@ -326,7 +326,7 @@ export async function runTestCase(options: RunTestCaseOptions): Promise<Evaluati
     await cache.set(cacheKey, providerResponse);
   }
 
-  const graderKind = testCase.grader ?? "heuristic";
+  const graderKind = evalCase.grader ?? "heuristic";
   const activeGrader = graders[graderKind] ?? graders.heuristic;
   if (!activeGrader) {
     throw new Error(`No grader registered for kind '${graderKind}'`);
@@ -336,7 +336,7 @@ export async function runTestCase(options: RunTestCaseOptions): Promise<Evaluati
   try {
     const gradeTimestamp = nowFn();
     grade = await activeGrader.grade({
-      testCase,
+      evalCase: evalCase,
       candidate: providerResponse.text ?? "",
       target,
       provider,
@@ -346,19 +346,19 @@ export async function runTestCase(options: RunTestCaseOptions): Promise<Evaluati
       judgeProvider,
     });
   } catch (error) {
-    return buildErrorResult(testCase, target.name, nowFn(), error, promptInputs);
+    return buildErrorResult(evalCase, target.name, nowFn(), error, promptInputs);
   }
 
   const completedAt = nowFn();
   const rawRequest: JsonObject = {
     request: promptInputs.request,
     guidelines: promptInputs.guidelines,
-    guideline_paths: testCase.guideline_paths,
+    guideline_paths: evalCase.guideline_paths,
   } as JsonObject;
 
   return {
-    eval_id: testCase.id,
-    conversation_id: testCase.conversation_id,
+    eval_id: evalCase.id,
+    conversation_id: evalCase.conversation_id,
     score: grade.score,
     hits: grade.hits,
     misses: grade.misses,
@@ -373,11 +373,11 @@ export async function runTestCase(options: RunTestCaseOptions): Promise<Evaluati
   } satisfies EvaluationResult;
 }
 
-function filterTestCases(testCases: readonly TestCase[], evalId?: string): readonly TestCase[] {
+function filterEvalCases(evalCases: readonly EvalCase[], evalId?: string): readonly EvalCase[] {
   if (!evalId) {
-    return testCases;
+    return evalCases;
   }
-  return testCases.filter((testCase) => testCase.id === evalId);
+  return evalCases.filter((evalCase) => evalCase.id === evalId);
 }
 
 function buildGraderRegistry(
@@ -405,19 +405,19 @@ function buildGraderRegistry(
 
 async function dumpPrompt(
   directory: string,
-  testCase: TestCase,
+  evalCase: EvalCase,
   promptInputs: { readonly request: string; readonly guidelines: string },
 ): Promise<void> {
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const filename = `${timestamp}_${sanitizeFilename(testCase.id)}.json`;
+  const filename = `${timestamp}_${sanitizeFilename(evalCase.id)}.json`;
   const filePath = path.resolve(directory, filename);
 
   await mkdir(path.dirname(filePath), { recursive: true });
   const payload = {
-    eval_id: testCase.id,
+    eval_id: evalCase.id,
     request: promptInputs.request,
     guidelines: promptInputs.guidelines,
-    guideline_paths: testCase.guideline_paths,
+    guideline_paths: evalCase.guideline_paths,
   } satisfies Record<string, unknown>;
 
   await writeFile(filePath, JSON.stringify(payload, null, 2), "utf8");
@@ -434,7 +434,7 @@ function sanitizeFilename(value: string): string {
 async function invokeProvider(
   provider: Provider,
   options: {
-    readonly testCase: TestCase;
+    readonly evalCase: EvalCase;
     readonly target: ResolvedTarget;
     readonly promptInputs: { readonly request: string; readonly guidelines: string };
     readonly attempt: number;
@@ -442,7 +442,7 @@ async function invokeProvider(
     readonly signal?: AbortSignal;
   },
 ): Promise<ProviderResponse> {
-  const { testCase, target, promptInputs, attempt, agentTimeoutMs, signal } = options;
+  const { evalCase: evalCase, target, promptInputs, attempt, agentTimeoutMs, signal } = options;
 
   const controller = new AbortController();
   const timeout = agentTimeoutMs
@@ -457,12 +457,12 @@ async function invokeProvider(
     return await provider.invoke({
       prompt: promptInputs.request,
       guidelines: promptInputs.guidelines,
-      attachments: testCase.guideline_paths,
-      testCaseId: testCase.id,
+      attachments: evalCase.guideline_paths,
+      evalCaseId: evalCase.id,
       attempt,
       metadata: {
         target: target.name,
-        grader: testCase.grader,
+        grader: evalCase.grader,
       },
       signal: controller.signal,
     });
@@ -474,7 +474,7 @@ async function invokeProvider(
 }
 
 function buildErrorResult(
-  testCase: TestCase,
+  evalCase: EvalCase,
   targetName: string,
   timestamp: Date,
   error: unknown,
@@ -485,13 +485,13 @@ function buildErrorResult(
   const rawRequest: JsonObject = {
     request: promptInputs.request,
     guidelines: promptInputs.guidelines,
-    guideline_paths: testCase.guideline_paths,
+    guideline_paths: evalCase.guideline_paths,
     error: message,
   } as JsonObject;
 
   return {
-    eval_id: testCase.id,
-    conversation_id: testCase.conversation_id,
+    eval_id: evalCase.id,
+    conversation_id: evalCase.conversation_id,
     score: 0,
     hits: [],
     misses: [`Error: ${message}`],
@@ -507,13 +507,13 @@ function buildErrorResult(
 function createCacheKey(
   provider: Provider,
   target: ResolvedTarget,
-  testCase: TestCase,
+  evalCase: EvalCase,
   promptInputs: { readonly request: string; readonly guidelines: string },
 ): string {
   const hash = createHash("sha256");
   hash.update(provider.id);
   hash.update(target.name);
-  hash.update(testCase.id);
+  hash.update(evalCase.id);
   hash.update(promptInputs.request);
   hash.update(promptInputs.guidelines);
   return hash.digest("hex");

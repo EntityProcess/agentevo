@@ -4,10 +4,10 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { HeuristicGrader } from "../../src/evaluation/grading.js";
-import { runTestCase, type EvaluationCache } from "../../src/evaluation/orchestrator.js";
+import { runEvalCase, type EvaluationCache } from "../../src/evaluation/orchestrator.js";
 import type { ResolvedTarget } from "../../src/evaluation/providers/targets.js";
 import type { Provider, ProviderResponse } from "../../src/evaluation/providers/types.js";
-import type { TestCase } from "../../src/evaluation/types.js";
+import type { EvalCase } from "../../src/evaluation/types.js";
 
 class SequenceProvider implements Provider {
   readonly id: string;
@@ -40,7 +40,7 @@ class SequenceProvider implements Provider {
   }
 }
 
-const baseTestCase: TestCase = {
+const baseTestCase: EvalCase = {
   id: "case-1",
   task: "Explain logging improvements",
   user_segments: [{ type: "text", value: "Explain logging improvements" }],
@@ -71,8 +71,8 @@ describe("runTestCase", () => {
       responses: [{ text: "You should add structured logging and avoid global state." }],
     });
 
-    const result = await runTestCase({
-      testCase: baseTestCase,
+    const result = await runEvalCase({
+      evalCase: baseTestCase,
       provider,
       target: baseTarget,
       graders: graderRegistry,
@@ -100,8 +100,8 @@ describe("runTestCase", () => {
       },
     } as EvaluationCache & { store: Map<string, ProviderResponse> };
 
-    const first = await runTestCase({
-      testCase: baseTestCase,
+    const first = await runEvalCase({
+      evalCase: baseTestCase,
       provider,
       target: baseTarget,
       graders: graderRegistry,
@@ -111,8 +111,8 @@ describe("runTestCase", () => {
 
     expect(first.model_answer).toContain("structured logging");
 
-    const second = await runTestCase({
-      testCase: baseTestCase,
+    const second = await runEvalCase({
+      evalCase: baseTestCase,
       provider,
       target: baseTarget,
       graders: graderRegistry,
@@ -130,8 +130,8 @@ describe("runTestCase", () => {
       responses: [{ text: "Add structured logging." }],
     });
 
-    const result = await runTestCase({
-      testCase: baseTestCase,
+    const result = await runEvalCase({
+      evalCase: baseTestCase,
       provider,
       target: baseTarget,
       graders: graderRegistry,
@@ -146,8 +146,8 @@ describe("runTestCase", () => {
       errors: [new Error("Provider failure")],
     });
 
-    const result = await runTestCase({
-      testCase: baseTestCase,
+    const result = await runEvalCase({
+      evalCase: baseTestCase,
       provider,
       target: baseTarget,
       graders: graderRegistry,
@@ -163,8 +163,8 @@ describe("runTestCase", () => {
       responses: [{ text: "Add structured logging." }],
     });
 
-    await runTestCase({
-      testCase: baseTestCase,
+    await runEvalCase({
+      evalCase: baseTestCase,
       provider,
       target: baseTarget,
       graders: graderRegistry,

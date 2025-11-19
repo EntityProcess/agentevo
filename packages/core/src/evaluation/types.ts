@@ -157,7 +157,7 @@ export function isGraderKind(value: unknown): value is GraderKind {
 /**
  * Test case definition sourced from AgentV specs.
  */
-export interface TestCase {
+export interface EvalCase {
   readonly id: string;
   readonly conversation_id?: string;
   readonly task: string;
