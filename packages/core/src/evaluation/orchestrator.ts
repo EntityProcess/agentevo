@@ -462,8 +462,6 @@ async function invokeProvider(
       evalCaseId: evalCase.id,
       attempt,
       metadata: {
-        target: target.name,
-        grader: evalCase.grader,
         systemPrompt: promptInputs.systemMessage ?? "",
       },
       signal: controller.signal,

@@ -98,9 +98,6 @@ function buildPromptDocument(
   if (request.evalCaseId) {
     parts.push(`- Test Case: ${request.evalCaseId}`);
   }
-  if (request.metadata?.target) {
-    parts.push(`- Target: ${String(request.metadata.target)}`);
-  }
 
   parts.push("\n## Task\n", request.prompt.trim());
 
