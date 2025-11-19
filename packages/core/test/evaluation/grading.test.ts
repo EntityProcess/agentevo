@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { HeuristicGrader, QualityGrader } from "../../src/evaluation/grading.js";
 import type { ResolvedTarget } from "../../src/evaluation/providers/targets.js";
 import type { Provider, ProviderResponse } from "../../src/evaluation/providers/types.js";
-import type { TestCase } from "../../src/evaluation/types.js";
+import type { EvalCase } from "../../src/evaluation/types.js";
 
 class StubProvider implements Provider {
   readonly id = "stub";
@@ -17,7 +17,7 @@ class StubProvider implements Provider {
   }
 }
 
-const baseTestCase: TestCase = {
+const baseTestCase: EvalCase = {
   id: "case-1",
   task: "Improve the logging implementation",
   user_segments: [{ type: "text", value: "Please add logging" }],
@@ -38,7 +38,7 @@ describe("HeuristicGrader", () => {
   it("scores candidate using extracted aspects", () => {
     const grader = new HeuristicGrader();
     const score = grader.grade({
-      testCase: baseTestCase,
+      evalCase: baseTestCase,
       candidate: "Please add structured logging and avoid global state",
       target: baseTarget,
       provider: new StubProvider({ text: "" }),
@@ -68,7 +68,7 @@ describe("QualityGrader", () => {
     });
 
     const result = await grader.grade({
-      testCase: { ...baseTestCase, grader: "llm_judge" },
+      evalCase: { ...baseTestCase, grader: "llm_judge" },
       candidate: "Answer",
       target: baseTarget,
       provider: judgeProvider,
@@ -99,7 +99,7 @@ describe("QualityGrader", () => {
     });
 
     const result = await grader.grade({
-      testCase: { ...baseTestCase, grader: "llm_judge" },
+      evalCase: { ...baseTestCase, grader: "llm_judge" },
       candidate: "Answer",
       target: baseTarget,
       provider: judgeProvider,
@@ -128,7 +128,7 @@ describe("QualityGrader", () => {
     });
 
     const result = await grader.grade({
-      testCase: { ...baseTestCase, grader: "llm_judge" },
+      evalCase: { ...baseTestCase, grader: "llm_judge" },
       candidate: "Answer",
       target: baseTarget,
       provider: judgeProvider,
@@ -158,7 +158,7 @@ describe("QualityGrader", () => {
     });
 
     const result = await grader.grade({
-      testCase: { ...baseTestCase, grader: "llm_judge" },
+      evalCase: { ...baseTestCase, grader: "llm_judge" },
       candidate: "Answer",
       target: baseTarget,
       provider: judgeProvider,
@@ -187,7 +187,7 @@ describe("QualityGrader", () => {
     });
 
     const result = await grader.grade({
-      testCase: { ...baseTestCase, grader: "llm_judge" },
+      evalCase: { ...baseTestCase, grader: "llm_judge" },
       candidate: "Answer",
       target: baseTarget,
       provider: judgeProvider,
@@ -209,7 +209,7 @@ describe("QualityGrader", () => {
     });
 
     const result = await grader.grade({
-      testCase: { ...baseTestCase, grader: "llm_judge" },
+      evalCase: { ...baseTestCase, grader: "llm_judge" },
       candidate: "Answer",
       target: baseTarget,
       provider: judgeProvider,

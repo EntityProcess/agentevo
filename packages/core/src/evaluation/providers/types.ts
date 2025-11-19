@@ -48,7 +48,7 @@ export interface ProviderRequest {
   readonly guidelines?: string;
   readonly chatPrompt?: ChatPrompt;
   readonly attachments?: readonly string[];
-  readonly testCaseId?: string;
+  readonly evalCaseId?: string;
   readonly attempt?: number;
   readonly maxOutputTokens?: number;
   readonly temperature?: number;

@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 
 import { buildDirectoryChain, buildSearchRoots, resolveFileReference } from "./file-utils.js";
-import type { GraderKind, JsonObject, JsonValue, TestCase, TestMessage } from "./types.js";
+import type { GraderKind, JsonObject, JsonValue, EvalCase, TestMessage } from "./types.js";
 import { isGraderKind, isJsonObject, isTestMessage } from "./types.js";
 
 const CODE_BLOCK_PATTERN = /```[\s\S]*?```/g;
@@ -139,7 +139,7 @@ export async function loadEvalCases(
   evalFilePath: string,
   repoRoot: URL | string,
   options?: LoadOptions,
-): Promise<readonly TestCase[]> {
+): Promise<readonly EvalCase[]> {
   const verbose = options?.verbose ?? false;
   const absoluteTestPath = path.resolve(evalFilePath);
   if (!(await fileExists(absoluteTestPath))) {
@@ -178,7 +178,7 @@ export async function loadEvalCases(
   }
 
   const globalGrader = coerceGrader(suite.grader) ?? "llm_judge";
-  const results: TestCase[] = [];
+  const results: EvalCase[] = [];
 
   for (const rawEvalcase of rawTestcases) {
     if (!isJsonObject(rawEvalcase)) {
@@ -210,6 +210,7 @@ export async function loadEvalCases(
     
     const assistantMessages = expectedMessages.filter((message) => message.role === "assistant");
     const userMessages = inputMessages.filter((message) => message.role === "user");
+    const systemMessages = inputMessages.filter((message) => message.role === "system");
 
     if (assistantMessages.length === 0) {
       logWarning(`No assistant message found for test case: ${id}`);
@@ -218,6 +219,33 @@ export async function loadEvalCases(
 
     if (assistantMessages.length > 1) {
       logWarning(`Multiple assistant messages found for test case: ${id}, using first`);
+    }
+
+    if (systemMessages.length > 1) {
+      logWarning(`Multiple system messages found for test case: ${id}, using first`);
+    }
+
+    // Extract system message content if present
+    let systemMessageContent: string | undefined;
+    if (systemMessages.length > 0) {
+      const content = systemMessages[0]?.content;
+      if (typeof content === "string") {
+        systemMessageContent = content;
+      } else if (Array.isArray(content)) {
+        // For array content, extract text values
+        const textParts: string[] = [];
+        for (const segment of content) {
+          if (isJsonObject(segment)) {
+            const value = segment.value;
+            if (typeof value === "string") {
+              textParts.push(value);
+            }
+          }
+        }
+        if (textParts.length > 0) {
+          systemMessageContent = textParts.join("\n\n");
+        }
+      }
     }
 
     const userSegments: JsonObject[] = [];
@@ -305,11 +333,12 @@ export async function loadEvalCases(
 
     const testCaseGrader = coerceGrader(evalcase.grader) ?? globalGrader;
 
-    const testCase: TestCase = {
+    const testCase: EvalCase = {
       id,
       conversation_id: conversationId,
       task: userTextPrompt,
       user_segments: userSegments,
+      system_message: systemMessageContent,
       expected_assistant_raw: expectedAssistantRaw,
       guideline_paths: guidelinePaths.map((guidelinePath) => path.resolve(guidelinePath)),
       code_snippets: codeSnippets,
@@ -339,8 +368,8 @@ export async function loadEvalCases(
  * Build prompt inputs by consolidating user request context and guideline content.
  */
 export async function buildPromptInputs(
-  testCase: TestCase,
-): Promise<{ request: string; guidelines: string }> {
+  testCase: EvalCase,
+): Promise<{ request: string; guidelines: string; systemMessage?: string }> {
   const guidelineContents: string[] = [];
   for (const rawPath of testCase.guideline_paths) {
     const absolutePath = path.resolve(rawPath);
@@ -397,7 +426,7 @@ export async function buildPromptInputs(
     .filter((part) => part.length > 0)
     .join("\n\n");
 
-  return { request, guidelines };
+  return { request, guidelines, systemMessage: testCase.system_message };
 }
 
 async function fileExists(absolutePath: string): Promise<boolean> {

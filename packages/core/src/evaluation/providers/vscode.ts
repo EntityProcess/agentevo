@@ -34,7 +34,7 @@ export class VSCodeProvider implements Provider {
     const attachments = normalizeAttachments(request.attachments);
     const promptContent = buildPromptDocument(request, attachments);
     const directory = await mkdtemp(path.join(tmpdir(), PROMPT_FILE_PREFIX));
-    const promptPath = path.join(directory, `${request.testCaseId ?? "request"}.prompt.md`);
+    const promptPath = path.join(directory, `${request.evalCaseId ?? "request"}.prompt.md`);
 
     try {
       await writeFile(promptPath, promptContent, "utf8");
@@ -95,11 +95,8 @@ function buildPromptDocument(
   }
 
   parts.push(`# AgentV Request`);
-  if (request.testCaseId) {
-    parts.push(`- Test Case: ${request.testCaseId}`);
-  }
-  if (request.metadata?.target) {
-    parts.push(`- Target: ${String(request.metadata.target)}`);
+  if (request.evalCaseId) {
+    parts.push(`- Test Case: ${request.evalCaseId}`);
   }
 
   parts.push("\n## Task\n", request.prompt.trim());

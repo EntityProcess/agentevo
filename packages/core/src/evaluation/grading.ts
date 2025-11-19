@@ -3,10 +3,10 @@ import { randomUUID } from "node:crypto";
 import type { ResolvedTarget } from "./providers/targets.js";
 import type { Provider, ProviderResponse } from "./providers/types.js";
 import { extractAspects, isErrorLike, scoreCandidateResponse } from "./scoring.js";
-import type { JsonObject, TestCase } from "./types.js";
+import type { JsonObject, EvalCase } from "./types.js";
 
 export interface GradeContext {
-  readonly testCase: TestCase;
+  readonly evalCase: EvalCase;
   readonly candidate: string;
   readonly target: ResolvedTarget;
   readonly provider: Provider;
@@ -38,7 +38,7 @@ export class HeuristicGrader implements Grader {
   readonly kind = "heuristic";
 
   grade(context: GradeContext): GradeResult {
-    const expectedAspects = extractAspects(context.testCase.expected_assistant_raw);
+    const expectedAspects = extractAspects(context.evalCase.expected_assistant_raw);
     const result = scoreCandidateResponse(context.candidate, expectedAspects);
 
     const misses = [...result.misses];
@@ -86,7 +86,7 @@ export class QualityGrader implements Grader {
       throw new Error("No judge provider available for LLM grading");
     }
 
-    const prompt = buildQualityPrompt(context.testCase, context.candidate);
+    const prompt = buildQualityPrompt(context.evalCase, context.candidate);
     const metadata: JsonObject = {
       systemPrompt: QUALITY_SYSTEM_PROMPT,
     };
@@ -94,7 +94,7 @@ export class QualityGrader implements Grader {
     const response = await judgeProvider.invoke({
       prompt,
       metadata,
-      testCaseId: context.testCase.id,
+      evalCaseId: context.evalCase.id,
       attempt: context.attempt,
       maxOutputTokens: this.maxOutputTokens,
       temperature: this.temperature,
@@ -147,7 +147,7 @@ const QUALITY_SYSTEM_PROMPT = [
   "}",
 ].join("\n");
 
-function buildQualityPrompt(testCase: TestCase, candidate: string): string {
+function buildQualityPrompt(testCase: EvalCase, candidate: string): string {
   const parts = [
     "[[ ## expected_outcome ## ]]",
     testCase.outcome.trim(),
