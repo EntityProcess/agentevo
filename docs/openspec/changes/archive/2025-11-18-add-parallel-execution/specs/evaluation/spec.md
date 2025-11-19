@@ -58,7 +58,7 @@ The system SHALL ensure file writes are synchronized when running parallel worke
 
 - **WHEN** test cases complete in parallel
 - **THEN** results may be written to the output file in completion order (not test case order)
-- **AND** each result includes its `test_id` for identification
+- **AND** each result includes its `eval_id` for identification
 - **AND** the JSONL format remains valid with no corruption
 
 #### Scenario: Mutex error handling

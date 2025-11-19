@@ -5,6 +5,7 @@ import type { FileType } from "./types.js";
 
 const SCHEMA_EVAL_V2 = "agentv-eval-v2";
 const SCHEMA_TARGETS_V2 = "agentv-targets-v2";
+const SCHEMA_CONFIG_V2 = "agentv-config-v2";
 
 /**
  * Detect file type by reading $schema field from YAML file.
@@ -31,6 +32,8 @@ export async function detectFileType(filePath: string): Promise<FileType> {
         return "eval";
       case SCHEMA_TARGETS_V2:
         return "targets";
+      case SCHEMA_CONFIG_V2:
+        return "config";
       default:
         return "unknown";
     }
@@ -43,7 +46,7 @@ export async function detectFileType(filePath: string): Promise<FileType> {
  * Check if a schema value is a valid AgentV schema identifier.
  */
 export function isValidSchema(schema: unknown): boolean {
-  return schema === SCHEMA_EVAL_V2 || schema === SCHEMA_TARGETS_V2;
+  return schema === SCHEMA_EVAL_V2 || schema === SCHEMA_TARGETS_V2 || schema === SCHEMA_CONFIG_V2;
 }
 
 /**
@@ -55,6 +58,8 @@ export function getExpectedSchema(fileType: FileType): string | undefined {
       return SCHEMA_EVAL_V2;
     case "targets":
       return SCHEMA_TARGETS_V2;
+    case "config":
+      return SCHEMA_CONFIG_V2;
     default:
       return undefined;
   }

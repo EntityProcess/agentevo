@@ -17,7 +17,7 @@ export function registerEvalCommand(program: Command): Command {
     .argument("<eval-file>", "Path to the evaluation .yaml file")
     .option("--target <name>", "Override target name from targets.yaml", "default")
     .option("--targets <path>", "Path to targets.yaml (overrides discovery)")
-    .option("--eval-id <id>", "Run only the test case with this identifier")
+    .option("--eval-id <id>", "Run only the eval case with this identifier")
     .option(
       "--workers <count>",
       "Number of parallel workers (default: 1, max: 50). Can also be set per-target in targets.yaml",

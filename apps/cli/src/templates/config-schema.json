@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AgentV Config Schema",
+  "description": "Schema for .agentv/config.yaml configuration files",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Schema identifier",
+      "enum": ["agentv-config-v2"]
+    },
+    "guideline_patterns": {
+      "type": "array",
+      "description": "Glob patterns for identifying guideline files (instructions, prompts). Files matching these patterns are treated as guidelines, while non-matching files are treated as regular file content.",
+      "items": {
+        "type": "string",
+        "description": "Glob pattern (e.g., '**/*.instructions.md', '**/prompts/**')"
+      },
+      "examples": [
+        ["**/*.instructions.md", "**/instructions/**", "**/*.prompt.md", "**/prompts/**"],
+        ["**/*.guide.md", "**/guidelines/**", "docs/AGENTS.md"]
+      ]
+    }
+  },
+  "required": ["$schema"],
+  "additionalProperties": false
+}

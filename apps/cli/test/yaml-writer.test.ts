@@ -32,7 +32,7 @@ describe("YamlWriter", () => {
     const writer = await YamlWriter.open(testFilePath);
 
     const result: EvaluationResult = {
-      test_id: "test-001",
+      eval_id: "test-001",
       score: 0.85,
       hits: ["aspect1", "aspect2"],
       misses: ["aspect3"],
@@ -50,7 +50,7 @@ describe("YamlWriter", () => {
     const content = await readFile(testFilePath, "utf-8");
 
     expect(content).toContain("---");
-    expect(content).toContain("test_id: test-001");
+    expect(content).toContain("eval_id: test-001");
     expect(content).toContain("score: 0.85");
     expect(content).toContain("- aspect1");
     expect(content).toContain("- aspect2");
@@ -58,7 +58,7 @@ describe("YamlWriter", () => {
     // Verify it's valid YAML
     const parsed = parseYaml(content);
     expect(parsed).toMatchObject({
-      test_id: "test-001",
+      eval_id: "test-001",
       score: 0.85,
       hits: ["aspect1", "aspect2"],
     });
@@ -69,7 +69,7 @@ describe("YamlWriter", () => {
 
     const results: EvaluationResult[] = [
       {
-        test_id: "test-001",
+        eval_id: "test-001",
         score: 0.85,
         hits: ["aspect1"],
         misses: [],
@@ -79,7 +79,7 @@ describe("YamlWriter", () => {
         timestamp: "2024-01-01T00:00:00.000Z",
       },
       {
-        test_id: "test-002",
+        eval_id: "test-002",
         score: 0.95,
         hits: ["aspect1", "aspect2"],
         misses: [],
@@ -107,15 +107,15 @@ describe("YamlWriter", () => {
     expect(docs).toHaveLength(2);
 
     const parsed = docs.map((doc) => doc.toJSON());
-    expect(parsed[0]).toMatchObject({ test_id: "test-001", score: 0.85 });
-    expect(parsed[1]).toMatchObject({ test_id: "test-002", score: 0.95 });
+    expect(parsed[0]).toMatchObject({ eval_id: "test-001", score: 0.85 });
+    expect(parsed[1]).toMatchObject({ eval_id: "test-002", score: 0.95 });
   });
 
   test("handles multiline strings correctly", async () => {
     const writer = await YamlWriter.open(testFilePath);
 
     const result: EvaluationResult = {
-      test_id: "test-multiline",
+      eval_id: "test-multiline",
       score: 0.75,
       hits: [],
       misses: [],
@@ -143,7 +143,7 @@ describe("YamlWriter", () => {
     await writer.close();
 
     const result: EvaluationResult = {
-      test_id: "test-closed",
+      eval_id: "test-closed",
       score: 0.5,
       hits: [],
       misses: [],
@@ -166,7 +166,7 @@ describe("YamlWriter", () => {
     const writer = await YamlWriter.open(testFilePath);
 
     const result: EvaluationResult = {
-      test_id: "test-empty-arrays",
+      eval_id: "test-empty-arrays",
       score: 0.0,
       hits: [],
       misses: [],

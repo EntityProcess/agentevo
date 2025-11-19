@@ -1,10 +1,11 @@
+import micromatch from "micromatch";
 import { constants } from "node:fs";
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 
-import { buildSearchRoots, resolveFileReference } from "./file-utils.js";
+import { buildDirectoryChain, buildSearchRoots, resolveFileReference } from "./file-utils.js";
 import type { GraderKind, JsonObject, JsonValue, TestCase, TestMessage } from "./types.js";
 import { isGraderKind, isJsonObject, isTestMessage } from "./types.js";
 
@@ -12,18 +13,80 @@ const CODE_BLOCK_PATTERN = /```[\s\S]*?```/g;
 const ANSI_YELLOW = "\u001b[33m";
 const ANSI_RESET = "\u001b[0m";
 const SCHEMA_EVAL_V2 = "agentv-eval-v2";
+const SCHEMA_CONFIG_V2 = "agentv-config-v2";
+
+type AgentVConfig = {
+  readonly $schema?: JsonValue;
+  readonly guideline_patterns?: readonly string[];
+};
+
+/**
+ * Load optional .agentv/config.yaml configuration file.
+ * Searches from eval file directory up to repo root.
+ */
+async function loadConfig(evalFilePath: string, repoRoot: string): Promise<AgentVConfig | null> {
+  const directories = buildDirectoryChain(evalFilePath, repoRoot);
+  
+  for (const directory of directories) {
+    const configPath = path.join(directory, ".agentv", "config.yaml");
+    
+    if (!(await fileExists(configPath))) {
+      continue;
+    }
+    
+    try {
+      const rawConfig = await readFile(configPath, "utf8");
+      const parsed = parse(rawConfig) as unknown;
+      
+      if (!isJsonObject(parsed)) {
+        logWarning(`Invalid .agentv/config.yaml format at ${configPath}`);
+        continue;
+      }
+      
+      const config = parsed as AgentVConfig;
+      
+      // Check $schema field to ensure V2 format
+      const schema = config.$schema;
+      
+      if (schema !== SCHEMA_CONFIG_V2) {
+        const message = typeof schema === 'string' 
+          ? `Invalid $schema value '${schema}' in ${configPath}. Expected '${SCHEMA_CONFIG_V2}'`
+          : `Missing required field '$schema' in ${configPath}.\nPlease add '$schema: ${SCHEMA_CONFIG_V2}' at the top of the file.`;
+        logWarning(message);
+        continue;
+      }
+      
+      const guidelinePatterns = config.guideline_patterns;
+      if (guidelinePatterns !== undefined && !Array.isArray(guidelinePatterns)) {
+        logWarning(`Invalid guideline_patterns in ${configPath}, expected array`);
+        continue;
+      }
+      
+      if (Array.isArray(guidelinePatterns) && !guidelinePatterns.every((p) => typeof p === "string")) {
+        logWarning(`Invalid guideline_patterns in ${configPath}, all entries must be strings`);
+        continue;
+      }
+      
+      return {
+        guideline_patterns: guidelinePatterns as readonly string[] | undefined,
+      };
+    } catch (error) {
+      logWarning(`Could not read .agentv/config.yaml at ${configPath}: ${(error as Error).message}`);
+      continue;
+    }
+  }
+  
+  return null;
+}
 
 /**
  * Determine whether a path references guideline content (instructions or prompts).
  */
-export function isGuidelineFile(filePath: string): boolean {
+export function isGuidelineFile(filePath: string, patterns?: readonly string[]): boolean {
   const normalized = filePath.split("\\").join("/");
-  return (
-    normalized.endsWith(".instructions.md") ||
-    normalized.includes("/instructions/") ||
-    normalized.endsWith(".prompt.md") ||
-    normalized.includes("/prompts/")
-  );
+  const patternsToUse = patterns ?? [];
+  
+  return micromatch.isMatch(normalized, patternsToUse as string[]);
 }
 
 /**
@@ -59,7 +122,7 @@ type RawTestSuite = JsonObject & {
   readonly target?: JsonValue;
 };
 
-type RawTestCase = JsonObject & {
+type RawEvalCase = JsonObject & {
   readonly id?: JsonValue;
   readonly conversation_id?: JsonValue;
   readonly outcome?: JsonValue;
@@ -72,24 +135,28 @@ type RawTestCase = JsonObject & {
 /**
  * Load eval cases from a AgentV YAML specification file.
  */
-export async function loadTestCases(
-  testFilePath: string,
+export async function loadEvalCases(
+  evalFilePath: string,
   repoRoot: URL | string,
   options?: LoadOptions,
 ): Promise<readonly TestCase[]> {
   const verbose = options?.verbose ?? false;
-  const absoluteTestPath = path.resolve(testFilePath);
+  const absoluteTestPath = path.resolve(evalFilePath);
   if (!(await fileExists(absoluteTestPath))) {
-    throw new Error(`Test file not found: ${testFilePath}`);
+    throw new Error(`Test file not found: ${evalFilePath}`);
   }
 
   const repoRootPath = resolveToAbsolutePath(repoRoot);
   const searchRoots = buildSearchRoots(absoluteTestPath, repoRootPath);
 
+  // Load configuration (walks up directory tree to repo root)
+  const config = await loadConfig(absoluteTestPath, repoRootPath);
+  const guidelinePatterns = config?.guideline_patterns;
+
   const rawFile = await readFile(absoluteTestPath, "utf8");
   const parsed = parse(rawFile) as unknown;
   if (!isJsonObject(parsed)) {
-    throw new Error(`Invalid test file format: ${testFilePath}`);
+    throw new Error(`Invalid test file format: ${evalFilePath}`);
   }
 
   const suite = parsed as RawTestSuite;
@@ -99,33 +166,33 @@ export async function loadTestCases(
   
   if (schema !== SCHEMA_EVAL_V2) {
     const message = typeof schema === 'string' 
-      ? `Invalid $schema value '${schema}' in ${testFilePath}. Expected '${SCHEMA_EVAL_V2}'`
-      : `Missing required field '$schema' in ${testFilePath}.\nPlease add '$schema: ${SCHEMA_EVAL_V2}' at the top of the file.`;
+      ? `Invalid $schema value '${schema}' in ${evalFilePath}. Expected '${SCHEMA_EVAL_V2}'`
+      : `Missing required field '$schema' in ${evalFilePath}.\nPlease add '$schema: ${SCHEMA_EVAL_V2}' at the top of the file.`;
     throw new Error(message);
   }
   
   // V2 format: $schema is agentv-eval-v2
   const rawTestcases = suite.evalcases;
   if (!Array.isArray(rawTestcases)) {
-    throw new Error(`Invalid test file format: ${testFilePath} - missing 'evalcases' field`);
+    throw new Error(`Invalid test file format: ${evalFilePath} - missing 'evalcases' field`);
   }
 
   const globalGrader = coerceGrader(suite.grader) ?? "llm_judge";
   const results: TestCase[] = [];
 
-  for (const rawTestcase of rawTestcases) {
-    if (!isJsonObject(rawTestcase)) {
+  for (const rawEvalcase of rawTestcases) {
+    if (!isJsonObject(rawEvalcase)) {
       logWarning("Skipping invalid test case entry (expected object)");
       continue;
     }
 
-    const testcase = rawTestcase as RawTestCase;
-    const id = asString(testcase.id);
-    const conversationId = asString(testcase.conversation_id);
-    const outcome = asString(testcase.outcome);
+    const evalcase = rawEvalcase as RawEvalCase;
+    const id = asString(evalcase.id);
+    const conversationId = asString(evalcase.conversation_id);
+    const outcome = asString(evalcase.outcome);
     
-    const inputMessagesValue = testcase.input_messages;
-    const expectedMessagesValue = testcase.expected_messages;
+    const inputMessagesValue = evalcase.input_messages;
+    const expectedMessagesValue = evalcase.expected_messages;
 
     if (!id || !outcome || !Array.isArray(inputMessagesValue)) {
       logWarning(`Skipping incomplete test case: ${id ?? "unknown"}`);
@@ -192,7 +259,11 @@ export async function loadTestCases(
 
           try {
             const fileContent = (await readFile(resolvedPath, "utf8")).replace(/\r\n/g, "\n");
-            if (isGuidelineFile(displayPath)) {
+            
+            // Calculate path relative to repo root for matching to handle ".." in displayPath
+            const relativeToRepo = path.relative(repoRootPath, resolvedPath);
+
+            if (isGuidelineFile(relativeToRepo, guidelinePatterns)) {
               guidelinePaths.push(path.resolve(resolvedPath));
               if (verbose) {
                 console.log(`  [Guideline] Found: ${displayPath}`);
@@ -232,7 +303,7 @@ export async function loadTestCases(
       .filter((part) => part.length > 0)
       .join(" ");
 
-    const testCaseGrader = coerceGrader(testcase.grader) ?? globalGrader;
+    const testCaseGrader = coerceGrader(evalcase.grader) ?? globalGrader;
 
     const testCase: TestCase = {
       id,
@@ -371,34 +442,6 @@ function cloneJsonValue(value: JsonValue): JsonValue {
     return value.map((item) => cloneJsonValue(item)) as readonly JsonValue[];
   }
   return cloneJsonObject(value as JsonObject);
-}
-
-function normalizeAssistantContent(content: TestMessage["content"] | undefined): string {
-  if (typeof content === "string") {
-    return content;
-  }
-  if (!content) {
-    return "";
-  }
-  const parts: string[] = [];
-  for (const entry of content) {
-    if (typeof entry === "string") {
-      parts.push(entry);
-      continue;
-    }
-    const textValue = asString(entry["text"]);
-    if (typeof textValue === "string") {
-      parts.push(textValue);
-      continue;
-    }
-    const valueValue = asString(entry["value"]);
-    if (typeof valueValue === "string") {
-      parts.push(valueValue);
-      continue;
-    }
-    parts.push(JSON.stringify(entry));
-  }
-  return parts.join(" ");
 }
 
 /**

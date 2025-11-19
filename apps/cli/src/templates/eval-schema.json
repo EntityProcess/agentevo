@@ -4,10 +4,10 @@
   "description": "Schema for YAML evaluation files with conversation flows, multiple evaluators, and execution configuration",
   "type": "object",
   "properties": {
-    "version": {
+    "$schema": {
       "type": "string",
-      "description": "Schema version",
-      "enum": ["2.0"]
+      "description": "Schema identifier",
+      "enum": ["agentv-eval-v2"]
     },
     "description": {
       "type": "string",

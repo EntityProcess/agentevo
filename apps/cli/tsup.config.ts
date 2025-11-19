@@ -1,6 +1,6 @@
-import { defineConfig } from "tsup";
 import { copyFileSync, mkdirSync, existsSync } from "node:fs";
 import path from "node:path";
+import { defineConfig } from "tsup";
 
 export default defineConfig({
   entry: ["src/index.ts", "src/cli.ts"],
@@ -9,9 +9,11 @@ export default defineConfig({
   clean: true,
   dts: false,
   target: "node20",
+  platform: "node",
   tsconfig: "./tsconfig.build.json",
-  // Bundle @agentv/core since it's a workspace dependency
-  noExternal: ["@agentv/core"],
+  // Bundle @agentv/core but keep micromatch external (it has dynamic requires)
+  noExternal: [/^@agentv\//],
+  external: ["micromatch"],
   // Copy template files after build
   onSuccess: async () => {
     const templatesDir = path.join("dist", "templates");
@@ -22,7 +24,8 @@ export default defineConfig({
     // Copy template files
     const templates = [
       "eval-build.prompt.md",
-      "eval-schema.json"
+      "eval-schema.json",
+      "config-schema.json"
     ];
     
     for (const file of templates) {

@@ -1,15 +1,16 @@
-import { constants } from "node:fs";
-import { access, readdir, stat } from "node:fs/promises";
-import path from "node:path";
-
 import {
   detectFileType,
   validateEvalFile,
   validateTargetsFile,
+  validateConfigFile,
   validateFileReferences,
   type ValidationResult,
   type ValidationSummary,
 } from "@agentv/core/evaluation/validation";
+import { constants } from "node:fs";
+import { access, readdir, stat } from "node:fs/promises";
+import path from "node:path";
+
 
 /**
  * Lint YAML files for AgentV schema compliance.
@@ -54,7 +55,7 @@ async function lintSingleFile(
           severity: "error",
           filePath: absolutePath,
           message:
-            "Missing or invalid $schema field. File must declare schema: 'agentv-eval-v2' or 'agentv-targets-v2'",
+            "Missing or invalid $schema field. File must declare schema: 'agentv-eval-v2', 'agentv-targets-v2', or 'agentv-config-v2'",
         },
       ],
     };
@@ -77,8 +78,10 @@ async function lintSingleFile(
         };
       }
     }
-  } else {
+  } else if (fileType === "targets") {
     result = await validateTargetsFile(absolutePath);
+  } else {
+    result = await validateConfigFile(absolutePath);
   }
 
   return result;

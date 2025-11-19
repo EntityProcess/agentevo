@@ -2,9 +2,9 @@ import { Command } from "commander";
 import { readFileSync } from "node:fs";
 
 import { registerEvalCommand } from "./commands/eval/index.js";
+import { initCommand } from "./commands/init/index.js";
 import { registerLintCommand } from "./commands/lint/index.js";
 import { registerStatusCommand } from "./commands/status.js";
-import { initCommand } from "./commands/init/index.js";
 
 const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 

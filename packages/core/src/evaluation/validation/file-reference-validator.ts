@@ -2,8 +2,8 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { parse } from "yaml";
 
-import { buildSearchRoots, findGitRoot, resolveFileReference } from "../file-utils.js";
 import type { ValidationError } from "./types.js";
+import { buildSearchRoots, findGitRoot, resolveFileReference } from "../file-utils.js";
 
 type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
 type JsonObject = { readonly [key: string]: JsonValue };

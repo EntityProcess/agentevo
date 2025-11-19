@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+
 import { initCommand } from "../src/commands/init/index.js";
 
 const TEST_DIR = path.join(process.cwd(), "test-output", "init-test");

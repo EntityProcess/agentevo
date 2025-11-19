@@ -1,10 +1,11 @@
-import { describe, it, expect } from "vitest";
-import { validateFileReferences } from "../../../src/evaluation/validation/file-reference-validator.js";
-import { writeFile, mkdir, rm } from "node:fs/promises";
-import path from "node:path";
-import { tmpdir } from "node:os";
 import { exec } from "node:child_process";
+import { writeFile, mkdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { promisify } from "node:util";
+import { describe, it, expect } from "vitest";
+
+import { validateFileReferences } from "../../../src/evaluation/validation/file-reference-validator.js";
 
 const execAsync = promisify(exec);
 

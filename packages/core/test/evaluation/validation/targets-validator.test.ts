@@ -1,8 +1,9 @@
-import { describe, it, expect } from "vitest";
-import { validateTargetsFile } from "../../../src/evaluation/validation/targets-validator.js";
 import { writeFile, mkdir, rm } from "node:fs/promises";
-import path from "node:path";
 import { tmpdir } from "node:os";
+import path from "node:path";
+import { describe, it, expect } from "vitest";
+
+import { validateTargetsFile } from "../../../src/evaluation/validation/targets-validator.js";
 
 describe("targets-validator", () => {
   const testDir = path.join(tmpdir(), `agentv-test-targets-${Date.now()}`);

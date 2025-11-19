@@ -1,8 +1,9 @@
-import { describe, it, expect } from "vitest";
-import { detectFileType, isValidSchema, getExpectedSchema } from "../../../src/evaluation/validation/file-type.js";
 import { writeFile, mkdir, rm } from "node:fs/promises";
-import path from "node:path";
 import { tmpdir } from "node:os";
+import path from "node:path";
+import { describe, it, expect } from "vitest";
+
+import { detectFileType, isValidSchema, getExpectedSchema } from "../../../src/evaluation/validation/file-type.js";
 
 describe("file-type", () => {
   const testDir = path.join(tmpdir(), `agentv-test-${Date.now()}`);

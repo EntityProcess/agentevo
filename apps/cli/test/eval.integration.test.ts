@@ -142,7 +142,7 @@ describe("agentv eval CLI", () => {
     const fixture = await createFixture();
     fixtures.push(fixture.baseDir);
 
-    const { stdout, stderr } = await runCli(fixture, [
+    const { stdout } = await runCli(fixture, [
       "eval",
       fixture.testFilePath,
       "--verbose",

@@ -1,6 +1,6 @@
 {
   "name": "agentv",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "CLI entry point for AgentV",
   "type": "module",
   "repository": {
@@ -33,6 +33,7 @@
     "commander": "^12.1.0",
     "dotenv": "^16.4.5",
     "log-update": "^7.0.1",
+    "micromatch": "^4.0.8",
     "yaml": "^2.6.1"
   },
   "devDependencies": {

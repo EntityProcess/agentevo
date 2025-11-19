@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
+
 import { TemplateManager } from "../../templates/index.js";
 
 export interface InitCommandOptions {

@@ -127,7 +127,7 @@ export function formatEvaluationSummary(summary: EvaluationSummary): string {
   lines.push("\n==================================================");
   lines.push("EVALUATION SUMMARY");
   lines.push("==================================================");
-  lines.push(`Total test cases: ${summary.total}`);
+  lines.push(`Total eval cases: ${summary.total}`);
   lines.push(`Mean score: ${formatScore(summary.mean)}`);
   lines.push(`Median score: ${formatScore(summary.median)}`);
   lines.push(`Min score: ${formatScore(summary.min)}`);
@@ -142,14 +142,14 @@ export function formatEvaluationSummary(summary: EvaluationSummary): string {
     lines.push(`  ${start.toFixed(1)}-${end.toFixed(1)}: ${bin.count}`);
   }
 
-  lines.push("\nTop performing test cases:");
+  lines.push("\nTop performing eval cases:");
   summary.topResults.forEach((result, index) => {
-    lines.push(`  ${index + 1}. ${result.test_id}: ${formatScore(result.score)}`);
+    lines.push(`  ${index + 1}. ${result.eval_id}: ${formatScore(result.score)}`);
   });
 
-  lines.push("\nLowest performing test cases:");
+  lines.push("\nLowest performing eval cases:");
   summary.bottomResults.forEach((result, index) => {
-    lines.push(`  ${index + 1}. ${result.test_id}: ${formatScore(result.score)}`);
+    lines.push(`  ${index + 1}. ${result.eval_id}: ${formatScore(result.score)}`);
   });
 
   return lines.join("\n");

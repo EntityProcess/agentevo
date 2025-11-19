@@ -20,7 +20,7 @@ interface RunEvaluationOptionsLike {
 }
 
 interface EvaluationResultLike {
-  readonly test_id: string;
+  readonly eval_id: string;
   readonly score: number;
   readonly hits: readonly string[];
   readonly misses: readonly string[];
@@ -36,7 +36,7 @@ function buildResults(targetName: string): EvaluationResultLike[] {
   const baseTime = new Date("2024-01-01T00:00:00.000Z");
   return [
     {
-      test_id: "case-alpha",
+      eval_id: "case-alpha",
       score: 0.6,
       hits: ["alpha"],
       misses: [],
@@ -48,7 +48,7 @@ function buildResults(targetName: string): EvaluationResultLike[] {
       raw_aspects: ["alpha"],
     },
     {
-      test_id: "case-beta",
+      eval_id: "case-beta",
       score: 0.9,
       hits: ["beta", "gamma"],
       misses: ["delta"],
@@ -102,7 +102,7 @@ export async function runEvaluation(
   const results = buildResults(options.target?.name ?? "unknown-target");
 
   await maybeWriteDiagnostics(options, results);
-  await maybeWritePromptDump(options.promptDumpDir, results.map((result) => result.test_id));
+  await maybeWritePromptDump(options.promptDumpDir, results.map((result) => result.eval_id));
 
   for (const result of results) {
     if (options.onResult) {

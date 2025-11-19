@@ -150,16 +150,16 @@ const QUALITY_SYSTEM_PROMPT = [
 function buildQualityPrompt(testCase: TestCase, candidate: string): string {
   const parts = [
     "[[ ## expected_outcome ## ]]",
-    testCase.outcome,
+    testCase.outcome.trim(),
     "",
     "[[ ## request ## ]]",
-    testCase.task,
+    testCase.task.trim(),
     "",
     "[[ ## reference_answer ## ]]",
-    testCase.expected_assistant_raw,
+    testCase.expected_assistant_raw.trim(),
     "",
     "[[ ## generated_answer ## ]]",
-    candidate,
+    candidate.trim(),
     "",
     "Respond with a single JSON object matching the schema described in the system prompt.",
   ];

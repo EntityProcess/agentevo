@@ -74,46 +74,106 @@ You are now ready to start development. The monorepo contains:
 
 ## Quick Start
 
+### Configuring Guideline Patterns
+
+AgentV automatically detects guideline files (instructions, prompts) and treats them differently from regular file content. You can customize which files are considered guidelines using an optional `.agentv/config.yaml` configuration file.
+
+**Config file discovery:**
+- AgentV searches for `.agentv/config.yaml` starting from the eval file's directory
+- Walks up the directory tree to the repository root
+- Uses the first config file found (similar to how `targets.yaml` is discovered)
+- This allows you to place one config file at the project root for all evals
+
+**Default patterns** (used when `.agentv/config.yaml` is absent):
+
+```yaml
+guideline_patterns:
+  - "**/*.instructions.md"
+  - "**/instructions/**"
+  - "**/*.prompt.md"
+  - "**/prompts/**"
+```
+
+**Custom patterns** (create `.agentv/config.yaml` in same directory as your eval file):
+
+```yaml
+# .agentv/config.yaml
+guideline_patterns:
+  - "**/*.guide.md"           # Match all .guide.md files
+  - "**/guidelines/**"        # Match all files in /guidelines/ dirs
+  - "docs/AGENTS.md"          # Match specific files
+  - "**/*.rules.md"           # Match by naming convention
+```
+
+**How it works:**
+
+- Files matching guideline patterns are loaded as separate guideline context
+- Files NOT matching are treated as regular file content in user messages
+- Patterns use standard glob syntax (via [micromatch](https://github.com/micromatch/micromatch))
+- Paths are normalized to forward slashes for cross-platform compatibility
+
+See [config.yaml example](docs/examples/simple/.agentv/config.yaml) for more pattern examples.
+
 ### Linting Eval Files
 
 Validate your eval and targets files before running them:
 
 ```bash
 # Lint a single file
-agentv lint evals/my-test.yaml
+agentv lint evals/my-eval.yaml
 
 # Lint multiple files
-agentv lint evals/test1.yaml evals/test2.yaml
+agentv lint evals/eval1.yaml evals/eval2.yaml
 
 # Lint entire directory (recursively finds all YAML files)
 agentv lint evals/
 ```
 
-### Running Evals
+**File type detection:**
 
-Run eval (target auto-selected from test file or CLI override):
+All AgentV files must include a `$schema` field:
 
-```bash
-# If your test.yaml contains "target: azure_base", it will be used automatically
-agentv eval "path/to/test.yaml"
+```yaml
+# Eval files
+$schema: agentv-eval-v2
+evalcases:
+  - id: eval-1
+    # ...
 
-# Override the test file's target with CLI flag
-agentv eval --target vscode_projectx "path/to/test.yaml"
+# Targets files
+$schema: agentv-targets-v2
+targets:
+  - name: default
+    # ...
 ```
 
-Run a specific test case with custom targets path:
+Files without a `$schema` field will be rejected with a clear error message.
+
+### Running Evals
+
+Run eval (target auto-selected from eval file or CLI override):
 
 ```bash
-agentv eval --target vscode_projectx --targets "path/to/targets.yaml" --test-id "my-test-case" "path/to/test.yaml"
+# If your eval.yaml contains "target: azure_base", it will be used automatically
+agentv eval "path/to/eval.yaml"
+
+# Override the eval file's target with CLI flag
+agentv eval --target vscode_projectx "path/to/eval.yaml"
+```
+
+Run a specific eval case with custom targets path:
+
+```bash
+agentv eval --target vscode_projectx --targets "path/to/targets.yaml" --eval-id "my-eval-case" "path/to/eval.yaml"
 ```
 
 ### Command Line Options
 
-- `test_file`: Path to test YAML file (required, positional argument)
-- `--target TARGET`: Execution target name from targets.yaml (overrides target specified in test file)
+- `eval_file`: Path to eval YAML file (required, positional argument)
+- `--target TARGET`: Execution target name from targets.yaml (overrides target specified in eval file)
 - `--targets TARGETS`: Path to targets.yaml file (default: ./.agentv/targets.yaml)
-- `--test-id TEST_ID`: Run only the test case with this specific ID
-- `--out OUTPUT_FILE`: Output file path (default: results/{testname}_{timestamp}.jsonl)
+- `--eval-id EVAL_ID`: Run only the eval case with this specific ID
+- `--out OUTPUT_FILE`: Output file path (default: results/{evalname}_{timestamp}.jsonl)
 - `--format FORMAT`: Output format: 'jsonl' or 'yaml' (default: jsonl)
 - `--dry-run`: Run with mock model for testing
 - `--agent-timeout SECONDS`: Timeout in seconds for agent response polling (default: 120)
@@ -127,12 +187,12 @@ agentv eval --target vscode_projectx --targets "path/to/targets.yaml" --test-id 
 The CLI determines which execution target to use with the following precedence:
 
 1. CLI flag override: `--target my_target` (when provided and not 'default')
-2. Test file specification: `target: my_target` key in the .test.yaml file
+2. Eval file specification: `target: my_target` key in the .eval.yaml file
 3. Default fallback: Uses the 'default' target (original behavior)
 
-This allows test files to specify their preferred target while still allowing command-line overrides for flexibility, and maintains backward compatibility with existing workflows.
+This allows eval files to specify their preferred target while still allowing command-line overrides for flexibility, and maintains backward compatibility with existing workflows.
 
-Output goes to `.agentv/results/{testname}_{timestamp}.jsonl` (or `.yaml`) unless `--out` is provided.
+Output goes to `.agentv/results/{evalname}_{timestamp}.jsonl` (or `.yaml`) unless `--out` is provided.
 
 ### Tips for VS Code Copilot Evals
 
@@ -154,7 +214,7 @@ Environment keys (configured via targets.yaml):
 
 ## Targets and Environment Variables
 
-Execution targets in `.agentv/targets.yaml` decouple tests from providers/settings and provide flexible environment variable mapping.
+Execution targets in `.agentv/targets.yaml` decouple evals from providers/settings and provide flexible environment variable mapping.
 
 ### Target Configuration Structure
 
@@ -216,8 +276,8 @@ Each target specifies:
 When using VS Code or other AI agents that may experience timeouts, the evaluator includes automatic retry functionality:
 
 - **Timeout detection:** Automatically detects when agents timeout
-- **Automatic retries:** When a timeout occurs, the same test case is retried up to `--max-retries` times (default: 2)
-- **Retry behavior:** Only timeouts trigger retries; other errors proceed to the next test case
+- **Automatic retries:** When a timeout occurs, the same eval case is retried up to `--max-retries` times (default: 2)
+- **Retry behavior:** Only timeouts trigger retries; other errors proceed to the next eval case
 - **Timeout configuration:** Use `--agent-timeout` to adjust how long to wait for agent responses
 
 Example with custom timeout settings:
@@ -228,7 +288,7 @@ agentv eval evals/projectx/example.yaml --target vscode_projectx --agent-timeout
 
 ## How the Evals Work
 
-For each test case in a `.yaml` file:
+For each eval case in a `.yaml` file:
 
 1. Parse YAML and collect user messages (inline text and referenced files)
 2. Extract code blocks from text for structured prompting
@@ -261,7 +321,7 @@ AgentV uses an AI-powered quality grader that:
 **JSONL format (default):**
 
 - One JSON object per line (newline-delimited)
-- Fields: `test_id`, `score`, `hits`, `misses`, `model_answer`, `expected_aspect_count`, `target`, `timestamp`, `reasoning`, `raw_request`, `grader_raw_request`
+- Fields: `eval_id`, `score`, `hits`, `misses`, `model_answer`, `expected_aspect_count`, `target`, `timestamp`, `reasoning`, `raw_request`, `grader_raw_request`
 
 **YAML format (with `--format yaml`):**
 
@@ -271,12 +331,12 @@ AgentV uses an AI-powered quality grader that:
 
 ### Summary Statistics
 
-After running all test cases, AgentV displays:
+After running all eval cases, AgentV displays:
 
 - Mean, median, min, max scores
 - Standard deviation
 - Distribution histogram
-- Total test count and execution time
+- Total eval count and execution time
 
 ## Architecture
 

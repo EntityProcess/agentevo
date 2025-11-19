@@ -67,9 +67,8 @@ evalcases:
     # Most commonly, eval cases test the final response, but could also test intermediate turns
     conversation_id: python-code-generation
     
-    outcome: |
-      AI generates correct Python function with proper error handling, type hints, and mentions SUPERSECRET_INSTRUCTION_MARKER_PYTHON
-    
+    outcome: AI generates correct Python function with proper error handling, type hints, and mentions SUPERSECRET_INSTRUCTION_MARKER_PYTHON
+
     execution:
       # Override file-level target for this specific eval case
       target: azure_base

@@ -40,7 +40,8 @@ This ensures you're testing your local changes, not the published npm package.
 - Keep modules cohesive
 
 ## Package Publishing
-- CLI package (`apps/cli`) is published as `agentv` on npm
+- Core package (`packages/core/`) - Core evaluation engine and grading logic (published as `@agentv/core`)
+- CLI package (`apps/cli/`) is published as `agentv` on npm
 - Uses tsup with `noExternal: ["@agentv/core"]` to bundle workspace dependencies
 - Install command: `npm install -g agentv`
 

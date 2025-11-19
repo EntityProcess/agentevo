@@ -1,6 +1,6 @@
-import { readFileSync, existsSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 export interface Template {
   path: string;
@@ -32,6 +32,10 @@ export class TemplateManager {
       path.join(templatesDir, "eval-schema.json"),
       "utf-8"
     );
+    const configSchema = readFileSync(
+      path.join(templatesDir, "config-schema.json"),
+      "utf-8"
+    );
 
     return [
       {
@@ -41,6 +45,10 @@ export class TemplateManager {
       {
         path: "contexts/eval-schema.json",
         content: evalSchema,
+      },
+      {
+        path: "contexts/config-schema.json",
+        content: configSchema,
       },
     ];
   }

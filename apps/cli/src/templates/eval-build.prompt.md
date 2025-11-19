@@ -3,11 +3,11 @@ description: 'Apply when writing evals in YAML format'
 ---
 
 ## Schema Reference
-- Schema: #file:../contexts/eval-schema.json (JSON Schema for validation and tooling)
+- Schema: `@../contexts/eval-schema.json` (JSON Schema for validation and tooling)
 - Format: YAML with structured content arrays
 
 ## Structure Requirements
-- Root level: `version` (required: "2.0"), `description` (optional), `target` (optional), `evalcases` (required)
+- Root level: `$schema` (required: "agentv-eval-v2"), `description` (optional), `target` (optional), `evalcases` (required)
 - Eval case fields: `id` (required), `outcome` (required), `input_messages` (required), `expected_messages` (required)
 - Optional fields: `conversation_id`, `note`, `execution`
 - Message fields: `role` (required), `content` (required)
@@ -17,7 +17,7 @@ description: 'Apply when writing evals in YAML format'
 
 ## Example
 ```yaml
-version: 2.0
+$schema: agentv-eval-v2
 description: Example showing basic features and conversation threading
 target: default
 
