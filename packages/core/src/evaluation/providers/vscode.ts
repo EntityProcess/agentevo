@@ -93,10 +93,10 @@ function buildPromptDocument(
 
   const guidelineFiles = collectGuidelineFiles(attachments, guidelinePatterns);
   if (guidelineFiles.length > 0) {
-    parts.push(buildMandatoryPrereadBlock(guidelineFiles));
+    parts.push("\n", buildMandatoryPrereadBlock(guidelineFiles));
   }
 
-  parts.push("\n[[ ## task ## ]]\n", request.prompt.trim());
+  parts.push("\n[[ ## user_query ## ]]\n", request.prompt.trim());
 
   return parts.join("\n").trim();
 }
@@ -121,10 +121,10 @@ function buildMandatoryPrereadBlock(guidelineFiles: readonly string[]): string {
   const instruction = [
     `Read all guideline files:\n${filesText}.\n`,
     `If any file is missing, fail with ERROR: missing-file <filename> and stop.\n`,
-    `Then fetch all documentation required by the guidelines before proceeding with your task.`,
+    `Then apply system_instructions on the user query below.`,
   ].join("");
 
-  return `[[ ## mandatory_pre_read ## ]]\n\n${instruction}`;
+  return `${instruction}`;
 }
 
 function collectGuidelineFiles(
