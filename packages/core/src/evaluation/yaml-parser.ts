@@ -356,6 +356,7 @@ export async function loadEvalCases(
       system_message: systemMessageContent,
       expected_assistant_raw: expectedAssistantRaw,
       guideline_paths: guidelinePaths.map((guidelinePath) => path.resolve(guidelinePath)),
+      guideline_patterns: guidelinePatterns,
       file_paths: allFilePaths,
       code_snippets: codeSnippets,
       outcome,

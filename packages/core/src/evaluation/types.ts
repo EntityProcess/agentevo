@@ -165,6 +165,7 @@ export interface EvalCase {
   readonly system_message?: string;
   readonly expected_assistant_raw: string;
   readonly guideline_paths: readonly string[];
+  readonly guideline_patterns?: readonly string[];
   readonly file_paths: readonly string[];
   readonly code_snippets: readonly string[];
   readonly outcome: string;

@@ -458,6 +458,7 @@ async function invokeProvider(
     return await provider.invoke({
       prompt: promptInputs.request,
       guidelines: promptInputs.guidelines,
+      guideline_patterns: evalCase.guideline_patterns,
       attachments: evalCase.file_paths,
       evalCaseId: evalCase.id,
       attempt,

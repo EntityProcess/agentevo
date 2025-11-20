@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { dispatchAgentSession, getSubagentRoot, provisionSubagents } from "subagent";
 
+import { isGuidelineFile } from "../yaml-parser.js";
 import type { VSCodeResolvedConfig } from "./targets.js";
 import type { Provider, ProviderRequest, ProviderResponse } from "./types.js";
 
@@ -32,7 +33,7 @@ export class VSCodeProvider implements Provider {
     }
 
     const attachments = normalizeAttachments(request.attachments);
-    const promptContent = buildPromptDocument(request, attachments);
+    const promptContent = buildPromptDocument(request, attachments, request.guideline_patterns);
     const directory = await mkdtemp(path.join(tmpdir(), PROMPT_FILE_PREFIX));
     const promptPath = path.join(directory, `${request.evalCaseId ?? "request"}.prompt.md`);
 
@@ -40,7 +41,7 @@ export class VSCodeProvider implements Provider {
       await writeFile(promptPath, promptContent, "utf8");
 
       const session = await dispatchAgentSession({
-        userQuery: composeUserQuery(request),
+        userQuery: promptContent,  // Use full prompt content instead of just request.prompt
         promptFile: promptPath,
         extraAttachments: attachments,
         wait: this.config.waitForResponse,
@@ -86,94 +87,67 @@ export class VSCodeProvider implements Provider {
 function buildPromptDocument(
   request: ProviderRequest,
   attachments: readonly string[] | undefined,
+  guidelinePatterns: readonly string[] | undefined,
 ): string {
   const parts: string[] = [];
 
-  const instructionFiles = collectInstructionFiles(attachments);
-  if (instructionFiles.length > 0) {
-    parts.push(buildMandatoryPrereadBlock(instructionFiles));
+  const guidelineFiles = collectGuidelineFiles(attachments, guidelinePatterns);
+  if (guidelineFiles.length > 0) {
+    parts.push(buildMandatoryPrereadBlock(guidelineFiles));
   }
 
-  parts.push(`# AgentV Request`);
-  if (request.evalCaseId) {
-    parts.push(`- Test Case: ${request.evalCaseId}`);
-  }
-
-  parts.push("\n[[ ## Task ## ]]\n\n", request.prompt.trim());
-
-  if (request.guidelines && request.guidelines.trim().length > 0) {
-    parts.push("\n\n[[ ## Guidelines ## ]]\n\n", request.guidelines.trim());
-  }
-
-  if (attachments && attachments.length > 0) {
-    const attachmentList = attachments.map((item) => `- ${item}`).join("\n");
-    parts.push("\n\n[[ ## Attachments ## ]]\n\n", attachmentList);
-  }
+  parts.push("\n[[ ## task ## ]]\n", request.prompt.trim());
 
   return parts.join("\n").trim();
 }
 
-function buildMandatoryPrereadBlock(instructionFiles: readonly string[]): string {
-  if (instructionFiles.length === 0) {
+function buildMandatoryPrereadBlock(guidelineFiles: readonly string[]): string {
+  if (guidelineFiles.length === 0) {
     return "";
   }
 
   const fileList: string[] = [];
-  const tokenList: string[] = [];
   let counter = 0;
 
-  for (const absolutePath of instructionFiles) {
+  for (const absolutePath of guidelineFiles) {
     counter += 1;
     const fileName = path.basename(absolutePath);
     const fileUri = pathToFileUri(absolutePath);
-    fileList.push(`[${fileName}](${fileUri})`);
-    tokenList.push(`INSTRUCTIONS_READ: \`${fileName}\` i=${counter} SHA256=<hex>`);
+    fileList.push(`* [${fileName}](${fileUri})`);
   }
 
-  const filesText = fileList.join(", ");
-  const tokensText = tokenList.join("\n");
+  const filesText = fileList.join("\n");
 
   const instruction = [
-    `Read all instruction files: ${filesText}.`,
-    `After reading each file, compute its SHA256 hash using this PowerShell command:`,
-    "`Get-FileHash -Algorithm SHA256 -LiteralPath '<file-path>' | Select-Object -ExpandProperty Hash`.",
-    `Then include, at the top of your reply, these exact tokens on separate lines:\n`,
-    tokensText,
-    `\nReplace \`<hex>\` with the actual SHA256 hash value computed from the PowerShell command.`,
+    `Read all guideline files:\n${filesText}.\n`,
     `If any file is missing, fail with ERROR: missing-file <filename> and stop.\n`,
-    `Then fetch all documentation required by the instructions before proceeding with your task.`,
-  ].join(" ");
+    `Then fetch all documentation required by the guidelines before proceeding with your task.`,
+  ].join("");
 
-  return `[[ ## mandatory_pre_read ## ]]\n\n${instruction}\n\n`;
+  return `[[ ## mandatory_pre_read ## ]]\n\n${instruction}`;
 }
 
-function collectInstructionFiles(attachments: readonly string[] | undefined): string[] {
+function collectGuidelineFiles(
+  attachments: readonly string[] | undefined,
+  guidelinePatterns: readonly string[] | undefined,
+): string[] {
   if (!attachments || attachments.length === 0) {
     return [];
   }
 
   const unique = new Map<string, string>();
   for (const attachment of attachments) {
-    if (!isInstructionPath(attachment)) {
-      continue;
-    }
     const absolutePath = path.resolve(attachment);
-    if (!unique.has(absolutePath)) {
-      unique.set(absolutePath, absolutePath);
+    const normalized = absolutePath.split(path.sep).join("/");
+    
+    if (isGuidelineFile(normalized, guidelinePatterns)) {
+      if (!unique.has(absolutePath)) {
+        unique.set(absolutePath, absolutePath);
+      }
     }
   }
 
   return Array.from(unique.values());
-}
-
-function isInstructionPath(filePath: string): boolean {
-  const normalized = filePath.split(path.sep).join("/");
-  return (
-    normalized.endsWith(".instructions.md") ||
-    normalized.includes("/instructions/") ||
-    normalized.endsWith(".prompt.md") ||
-    normalized.includes("/prompts/")
-  );
 }
 
 function pathToFileUri(filePath: string): string {
@@ -193,12 +167,9 @@ function pathToFileUri(filePath: string): string {
 }
 
 function composeUserQuery(request: ProviderRequest): string {
-  const segments: string[] = [];
-  segments.push(request.prompt.trim());
-  if (request.guidelines && request.guidelines.trim().length > 0) {
-    segments.push("\nGuidelines:\n", request.guidelines.trim());
-  }
-  return segments.join("\n").trim();
+  // For VS Code, guidelines are handled via file attachments
+  // Do NOT include guideline content in the user query
+  return request.prompt.trim();
 }
 
 function normalizeAttachments(attachments: readonly string[] | undefined): string[] | undefined {
