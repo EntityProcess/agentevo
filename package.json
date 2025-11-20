@@ -23,6 +23,8 @@
     "dev": "pnpm --filter @agentv/cli dev",
     "agentv": "node apps/cli/dist/cli.js",
     "version:bump": "tsx scripts/bump-version.ts",
+    "subagent:link": "tsx scripts/link-subagent.ts",
+    "subagent:unlink": "tsx scripts/unlink-subagent.ts",
     "publish": "pnpm build && pnpm -r publish --access public"
   },
   "devDependencies": {
