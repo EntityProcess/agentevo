@@ -76,23 +76,13 @@ You are now ready to start development. The monorepo contains:
 
 ### Configuring Guideline Patterns
 
-AgentV automatically detects guideline files (instructions, prompts) and treats them differently from regular file content. You can customize which files are considered guidelines using an optional `.agentv/config.yaml` configuration file.
+AgentV automatically detects guideline files and treats them differently from regular file content. You can customize which files are considered guidelines using an optional `.agentv/config.yaml` configuration file.
 
 **Config file discovery:**
 - AgentV searches for `.agentv/config.yaml` starting from the eval file's directory
 - Walks up the directory tree to the repository root
 - Uses the first config file found (similar to how `targets.yaml` is discovered)
 - This allows you to place one config file at the project root for all evals
-
-**Default patterns** (used when `.agentv/config.yaml` is absent):
-
-```yaml
-guideline_patterns:
-  - "**/*.instructions.md"
-  - "**/instructions/**"
-  - "**/*.prompt.md"
-  - "**/prompts/**"
-```
 
 **Custom patterns** (create `.agentv/config.yaml` in same directory as your eval file):
 
@@ -105,28 +95,21 @@ guideline_patterns:
   - "**/*.rules.md"           # Match by naming convention
 ```
 
-**How it works:**
-
-- Files matching guideline patterns are loaded as separate guideline context
-- Files NOT matching are treated as regular file content in user messages
-- Patterns use standard glob syntax (via [micromatch](https://github.com/micromatch/micromatch))
-- Paths are normalized to forward slashes for cross-platform compatibility
-
 See [config.yaml example](docs/examples/simple/.agentv/config.yaml) for more pattern examples.
 
-### Linting Eval Files
+### Validating Eval Files
 
 Validate your eval and targets files before running them:
 
 ```bash
-# Lint a single file
-agentv lint evals/my-eval.yaml
+# Validate a single file
+agentv validate evals/my-eval.yaml
 
-# Lint multiple files
-agentv lint evals/eval1.yaml evals/eval2.yaml
+# Validate multiple files
+agentv validate evals/eval1.yaml evals/eval2.yaml
 
-# Lint entire directory (recursively finds all YAML files)
-agentv lint evals/
+# Validate entire directory (recursively finds all YAML files)
+agentv validate evals/
 ```
 
 **File type detection:**
