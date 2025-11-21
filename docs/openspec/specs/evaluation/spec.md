@@ -463,3 +463,47 @@ The system SHALL calculate statistics only after all parallel workers complete.
 - **THEN** the final statistics (mean, median, std dev) are identical
 - **AND** only the execution time differs
 
+### Requirement: Guideline Pattern Configuration
+
+The system SHALL support an optional `.agentv.yaml` configuration file in the eval file directory for customizing guideline detection using glob patterns.
+
+#### Scenario: Load custom guideline patterns
+
+- **WHEN** a `.agentv.yaml` file exists in the same directory as the eval file
+- **AND** it contains a `guideline_patterns` array with glob patterns
+- **THEN** the system uses those patterns to identify guideline files
+- **AND** treats files matching any pattern as guidelines (excluded from user segments)
+
+#### Scenario: Use defaults when config absent
+
+- **WHEN** no `.agentv.yaml` file exists in the eval file directory
+- **THEN** the system uses default patterns: `**/*.instructions.md`, `**/instructions/**`, `**/*.prompt.md`, `**/prompts/**`
+- **AND** continues evaluation normally
+
+#### Scenario: Match files with glob patterns
+
+- **WHEN** evaluating whether a file is a guideline
+- **THEN** the system matches the normalized file path against each glob pattern
+- **AND** supports `**` (recursive), `*` (wildcard), and literal path segments
+- **AND** normalizes path separators to forward slashes for cross-platform compatibility
+
+### Requirement: Provider-level batching flag
+
+The system SHALL allow targets to request provider-level batching via `settings.provider_batching: true`, sending all eval queries through a single provider session when the provider supports batching, and otherwise falling back to normal per-case dispatch without failing schema validation.
+
+#### Scenario: Enabled for batching-capable provider
+
+- **WHEN** a target specifies `settings.provider_batching: true`
+- **AND** the selected provider supports batching and exposes `invokeBatch` (e.g., VS Code multi-`-q`)
+- **THEN** AgentV batches all eval case prompts into a single provider session
+- **AND** keeps per-eval results mapped back to their original IDs
+- **AND** emits verbose diagnostics indicating batch mode is being used
+
+#### Scenario: Fallback when provider cannot batch
+
+- **WHEN** a target specifies `settings.provider_batching: true`
+- **AND** the provider does not support batching or a batch attempt fails
+- **THEN** AgentV executes the eval cases using standard per-case dispatch
+- **AND** the run does not fail schema validation because of the flag
+- **AND** in verbose mode, AgentV logs that batch was requested but not applied
+

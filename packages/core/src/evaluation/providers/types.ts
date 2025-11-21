@@ -69,6 +69,15 @@ export interface Provider {
   readonly kind: ProviderKind;
   readonly targetName: string;
   invoke(request: ProviderRequest): Promise<ProviderResponse>;
+  /**
+   * Optional capability marker for provider-managed batching (single session handling multiple requests).
+   */
+  readonly supportsBatch?: boolean;
+  /**
+   * Optional batch invocation hook. When defined alongside supportsBatch=true,
+   * the orchestrator may send multiple requests in a single provider session.
+   */
+  invokeBatch?(requests: readonly ProviderRequest[]): Promise<readonly ProviderResponse[]>;
 }
 
 export type EnvLookup = Readonly<Record<string, string | undefined>>;

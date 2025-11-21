@@ -42,6 +42,8 @@ evalcases:
           # Files ending in .instructions.md are treated as guidelines
           - type: file
             value: ../prompts/javascript.instructions.md
+          - type: file
+            value: ./attachments/example.txt
     
     expected_messages:
       - role: assistant

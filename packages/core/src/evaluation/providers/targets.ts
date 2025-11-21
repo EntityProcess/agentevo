@@ -47,6 +47,7 @@ export type ResolvedTarget =
       readonly name: string;
       readonly judgeTarget?: string;
       readonly workers?: number;
+      readonly providerBatching?: boolean;
       readonly config: AzureResolvedConfig;
     }
   | {
@@ -54,6 +55,7 @@ export type ResolvedTarget =
       readonly name: string;
       readonly judgeTarget?: string;
       readonly workers?: number;
+      readonly providerBatching?: boolean;
       readonly config: AnthropicResolvedConfig;
     }
   | {
@@ -61,6 +63,7 @@ export type ResolvedTarget =
       readonly name: string;
       readonly judgeTarget?: string;
       readonly workers?: number;
+      readonly providerBatching?: boolean;
       readonly config: GeminiResolvedConfig;
     }
   | {
@@ -68,6 +71,7 @@ export type ResolvedTarget =
       readonly name: string;
       readonly judgeTarget?: string;
       readonly workers?: number;
+      readonly providerBatching?: boolean;
       readonly config: MockResolvedConfig;
     }
   | {
@@ -75,6 +79,7 @@ export type ResolvedTarget =
       readonly name: string;
       readonly judgeTarget?: string;
       readonly workers?: number;
+      readonly providerBatching?: boolean;
       readonly config: VSCodeResolvedConfig;
     };
 
@@ -108,6 +113,9 @@ export function resolveTargetDefinition(
 ): ResolvedTarget {
   const parsed = BASE_TARGET_SCHEMA.parse(definition);
   const provider = parsed.provider.toLowerCase();
+  const providerBatching = resolveOptionalBoolean(
+    parsed.settings?.provider_batching ?? parsed.settings?.providerBatching,
+  );
 
   switch (provider) {
     case "azure":
@@ -117,6 +125,7 @@ export function resolveTargetDefinition(
         name: parsed.name,
         judgeTarget: parsed.judge_target,
         workers: parsed.workers,
+        providerBatching,
         config: resolveAzureConfig(parsed, env),
       };
     case "anthropic":
@@ -125,6 +134,7 @@ export function resolveTargetDefinition(
         name: parsed.name,
         judgeTarget: parsed.judge_target,
         workers: parsed.workers,
+        providerBatching,
         config: resolveAnthropicConfig(parsed, env),
       };
     case "gemini":
@@ -135,6 +145,7 @@ export function resolveTargetDefinition(
         name: parsed.name,
         judgeTarget: parsed.judge_target,
         workers: parsed.workers,
+        providerBatching,
         config: resolveGeminiConfig(parsed, env),
       };
     case "mock":
@@ -143,6 +154,7 @@ export function resolveTargetDefinition(
         name: parsed.name,
         judgeTarget: parsed.judge_target,
         workers: parsed.workers,
+        providerBatching,
         config: resolveMockConfig(parsed),
       };
     case "vscode":
@@ -152,6 +164,7 @@ export function resolveTargetDefinition(
         name: parsed.name,
         judgeTarget: parsed.judge_target,
         workers: parsed.workers,
+        providerBatching,
         config: resolveVSCodeConfig(parsed, env, provider === "vscode-insiders"),
       };
     default:

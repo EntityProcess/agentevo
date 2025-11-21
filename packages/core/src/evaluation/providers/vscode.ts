@@ -1,7 +1,12 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { dispatchAgentSession, getSubagentRoot, provisionSubagents } from "subagent";
+import {
+  dispatchAgentSession,
+  dispatchBatchAgent,
+  getSubagentRoot,
+  provisionSubagents,
+} from "subagent";
 
 import { isGuidelineFile } from "../yaml-parser.js";
 import type { VSCodeResolvedConfig } from "./targets.js";
@@ -13,6 +18,7 @@ export class VSCodeProvider implements Provider {
   readonly id: string;
   readonly kind: "vscode" | "vscode-insiders";
   readonly targetName: string;
+  readonly supportsBatch = true;
 
   private readonly config: VSCodeResolvedConfig;
 
@@ -71,6 +77,73 @@ export class VSCodeProvider implements Provider {
       },
     };
   }
+
+  async invokeBatch(requests: readonly ProviderRequest[]): Promise<readonly ProviderResponse[]> {
+    if (requests.length === 0) {
+      return [];
+    }
+
+    const normalizedRequests = requests.map((req) => ({
+      request: req,
+      attachments: normalizeAttachments(req.attachments),
+    }));
+
+    const combinedAttachments = mergeAttachments(
+      normalizedRequests.map(({ attachments }) => attachments),
+    );
+    const userQueries = normalizedRequests.map(({ request, attachments }) =>
+      buildPromptDocument(request, attachments, request.guideline_patterns),
+    );
+
+    const session = await dispatchBatchAgent({
+      userQueries,
+      extraAttachments: combinedAttachments,
+      wait: this.config.waitForResponse,
+      dryRun: this.config.dryRun,
+      vscodeCmd: this.config.command,
+      subagentRoot: this.config.subagentRoot,
+      workspaceTemplate: this.config.workspaceTemplate,
+      silent: true,
+    });
+
+    if (session.exitCode !== 0 || !session.responseFiles) {
+      const failure = session.error ?? "VS Code subagent did not produce batch responses";
+      throw new Error(failure);
+    }
+
+    if (this.config.dryRun) {
+      return normalizedRequests.map(({ attachments }) => ({
+        text: "",
+        raw: {
+          session,
+          attachments,
+          allAttachments: combinedAttachments,
+        },
+      }));
+    }
+
+    if (session.responseFiles.length !== requests.length) {
+      throw new Error(
+        `VS Code batch returned ${session.responseFiles.length} responses for ${requests.length} requests`,
+      );
+    }
+
+    const responses: ProviderResponse[] = [];
+    for (const [index, responseFile] of session.responseFiles.entries()) {
+      const responseText = await readFile(responseFile, "utf8");
+      responses.push({
+        text: responseText,
+        raw: {
+          session,
+          attachments: normalizedRequests[index]?.attachments,
+          allAttachments: combinedAttachments,
+          responseFile,
+        },
+      });
+    }
+
+    return responses;
+  }
 }
 
 function buildPromptDocument(
@@ -81,8 +154,15 @@ function buildPromptDocument(
   const parts: string[] = [];
 
   const guidelineFiles = collectGuidelineFiles(attachments, guidelinePatterns);
-  if (guidelineFiles.length > 0) {
-    parts.push("\n", buildMandatoryPrereadBlock(guidelineFiles));
+  const attachmentFiles = collectAttachmentFiles(attachments);
+
+  const nonGuidelineAttachments = attachmentFiles.filter(
+    (file) => !guidelineFiles.includes(file),
+  );
+
+  const prereadBlock = buildMandatoryPrereadBlock(guidelineFiles, nonGuidelineAttachments);
+  if (prereadBlock.length > 0) {
+    parts.push("\n", prereadBlock);
   }
 
   parts.push("\n[[ ## user_query ## ]]\n", request.prompt.trim());
@@ -90,30 +170,36 @@ function buildPromptDocument(
   return parts.join("\n").trim();
 }
 
-function buildMandatoryPrereadBlock(guidelineFiles: readonly string[]): string {
-  if (guidelineFiles.length === 0) {
+function buildMandatoryPrereadBlock(
+  guidelineFiles: readonly string[],
+  attachmentFiles: readonly string[],
+): string {
+  if (guidelineFiles.length === 0 && attachmentFiles.length === 0) {
     return "";
   }
 
-  const fileList: string[] = [];
-  let counter = 0;
+  const buildList = (files: readonly string[]): string[] =>
+    files.map((absolutePath) => {
+      const fileName = path.basename(absolutePath);
+      const fileUri = pathToFileUri(absolutePath);
+      return `* [${fileName}](${fileUri})`;
+    });
 
-  for (const absolutePath of guidelineFiles) {
-    counter += 1;
-    const fileName = path.basename(absolutePath);
-    const fileUri = pathToFileUri(absolutePath);
-    fileList.push(`* [${fileName}](${fileUri})`);
+  const sections: string[] = [];
+  if (guidelineFiles.length > 0) {
+    sections.push(`Read all guideline files:\n${buildList(guidelineFiles).join("\n")}.`);
   }
 
-  const filesText = fileList.join("\n");
+  if (attachmentFiles.length > 0) {
+    sections.push(`Read all attachment files:\n${buildList(attachmentFiles).join("\n")}.`);
+  }
 
-  const instruction = [
-    `Read all guideline files:\n${filesText}.\n`,
-    `If any file is missing, fail with ERROR: missing-file <filename> and stop.\n`,
-    `Then apply system_instructions on the user query below.`,
-  ].join("");
+  sections.push(
+    "If any file is missing, fail with ERROR: missing-file <filename> and stop.",
+    "Then apply system_instructions on the user query below.",
+  );
 
-  return `${instruction}`;
+  return sections.join("\n");
 }
 
 function collectGuidelineFiles(
@@ -136,6 +222,22 @@ function collectGuidelineFiles(
     }
   }
 
+  return Array.from(unique.values());
+}
+
+function collectAttachmentFiles(
+  attachments: readonly string[] | undefined,
+): string[] {
+  if (!attachments || attachments.length === 0) {
+    return [];
+  }
+  const unique = new Map<string, string>();
+  for (const attachment of attachments) {
+    const absolutePath = path.resolve(attachment);
+    if (!unique.has(absolutePath)) {
+      unique.set(absolutePath, absolutePath);
+    }
+  }
   return Array.from(unique.values());
 }
 
@@ -170,6 +272,17 @@ function normalizeAttachments(attachments: readonly string[] | undefined): strin
     deduped.add(path.resolve(attachment));
   }
   return Array.from(deduped);
+}
+
+function mergeAttachments(all: readonly (readonly string[] | undefined)[]): string[] | undefined {
+  const deduped = new Set<string>();
+  for (const list of all) {
+    if (!list) continue;
+    for (const attachment of list) {
+      deduped.add(path.resolve(attachment));
+    }
+  }
+  return deduped.size > 0 ? Array.from(deduped) : undefined;
 }
 
 export interface EnsureSubagentsOptions {

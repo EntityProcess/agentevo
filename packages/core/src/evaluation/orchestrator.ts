@@ -11,7 +11,13 @@ import {
 } from "./grading.js";
 import { createProvider } from "./providers/index.js";
 import { resolveTargetDefinition, type ResolvedTarget } from "./providers/targets.js";
-import type { EnvLookup, Provider, ProviderResponse, TargetDefinition } from "./providers/types.js";
+import type {
+  EnvLookup,
+  Provider,
+  ProviderRequest,
+  ProviderResponse,
+  TargetDefinition,
+} from "./providers/types.js";
 import type { EvaluationResult, JsonObject, EvalCase } from "./types.js";
 import { buildPromptInputs, loadEvalCases } from "./yaml-parser.js";
 
@@ -146,6 +152,15 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
   const graderRegistry = buildGraderRegistry(graders, resolveJudgeProvider);
 
   const primaryProvider = getOrCreateProvider(target);
+  const providerSupportsBatch =
+    target.providerBatching === true &&
+    primaryProvider.supportsBatch === true &&
+    typeof primaryProvider.invokeBatch === "function";
+  if (target.providerBatching && !providerSupportsBatch && verbose) {
+    console.warn(
+      `Provider batching requested for target '${target.name}', but provider does not advertise batch support. Using per-case dispatch.`,
+    );
+  }
 
   // Notify about total test count before starting
   if (onProgress && filteredEvalCases.length > 0) {
@@ -156,6 +171,28 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
         evalId: filteredEvalCases[i].id,
         status: "pending",
       });
+    }
+  }
+
+  if (providerSupportsBatch) {
+    try {
+      return await runBatchEvaluation({
+        evalCases: filteredEvalCases,
+        provider: primaryProvider,
+        target,
+        graderRegistry,
+        promptDumpDir,
+        nowFn: now ?? (() => new Date()),
+        onProgress,
+        onResult,
+        verbose,
+        resolveJudgeProvider,
+      });
+    } catch (error) {
+      if (verbose) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(`Provider batch execution failed, falling back to per-case dispatch: ${message}`);
+      }
     }
   }
 
@@ -252,6 +289,163 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
       if (onResult) {
         await onResult(errorResult);
       }
+    }
+  }
+
+  return results;
+}
+
+async function runBatchEvaluation(options: {
+  readonly evalCases: readonly EvalCase[];
+  readonly provider: Provider;
+  readonly target: ResolvedTarget;
+  readonly graderRegistry: Partial<Record<string, Grader>> & { readonly heuristic: Grader };
+  readonly promptDumpDir?: string;
+  readonly nowFn: () => Date;
+  readonly onProgress?: (event: ProgressEvent) => MaybePromise<void>;
+  readonly onResult?: (result: EvaluationResult) => MaybePromise<void>;
+  readonly verbose?: boolean;
+  readonly resolveJudgeProvider: (target: ResolvedTarget) => Promise<Provider | undefined>;
+}): Promise<readonly EvaluationResult[]> {
+  const {
+    evalCases,
+    provider,
+    target,
+    graderRegistry,
+    promptDumpDir,
+    nowFn,
+    onProgress,
+    onResult,
+    resolveJudgeProvider,
+  } = options;
+
+  // Prepare prompt inputs up front so we can reuse them for grading.
+  const promptInputsList: { readonly request: string; readonly guidelines: string; readonly systemMessage?: string }[] =
+    [];
+  for (const evalCase of evalCases) {
+    const promptInputs = await buildPromptInputs(evalCase);
+    if (promptDumpDir) {
+      await dumpPrompt(promptDumpDir, evalCase, promptInputs);
+    }
+    promptInputsList.push(promptInputs);
+  }
+
+  const batchRequests: ProviderRequest[] = evalCases.map((evalCase, index) => {
+    const promptInputs = promptInputsList[index];
+    return {
+      prompt: promptInputs.request,
+      guidelines: promptInputs.guidelines,
+      guideline_patterns: evalCase.guideline_patterns,
+      attachments: evalCase.file_paths,
+      evalCaseId: evalCase.id,
+      metadata: {
+        systemPrompt: promptInputs.systemMessage ?? "",
+      },
+    };
+  });
+
+  const batchResponse = await provider.invokeBatch?.(batchRequests);
+  if (!Array.isArray(batchResponse)) {
+    throw new Error("Provider batching failed: invokeBatch did not return an array");
+  }
+  if (batchResponse.length !== evalCases.length) {
+    throw new Error(
+      `Provider batching failed: expected ${evalCases.length} responses, received ${batchResponse.length}`,
+    );
+  }
+
+  if (onProgress) {
+    const startedAt = Date.now();
+    for (let i = 0; i < evalCases.length; i++) {
+      await onProgress({
+        workerId: 1,
+        evalId: evalCases[i].id,
+        status: "running",
+        startedAt,
+      });
+    }
+  }
+
+  const results: EvaluationResult[] = [];
+  for (let i = 0; i < evalCases.length; i++) {
+    const evalCase = evalCases[i];
+    const promptInputs = promptInputsList[i];
+    const providerResponse = batchResponse[i];
+    const now = nowFn();
+
+    const graderKind = evalCase.grader ?? "heuristic";
+    const activeGrader = graderRegistry[graderKind] ?? graderRegistry.heuristic;
+    if (!activeGrader) {
+      throw new Error(`No grader registered for kind '${graderKind}'`);
+    }
+
+    let grade: GradeResult;
+    try {
+      grade = await activeGrader.grade({
+        evalCase,
+        candidate: providerResponse.text ?? "",
+        target,
+        provider,
+        attempt: 0,
+        promptInputs,
+        now,
+        judgeProvider: await resolveJudgeProvider(target),
+      });
+    } catch (error) {
+      const errorResult = buildErrorResult(evalCase, target.name, nowFn(), error, promptInputs);
+      results.push(errorResult);
+      if (onResult) {
+        await onResult(errorResult);
+      }
+      if (onProgress) {
+        await onProgress({
+          workerId: 1,
+          evalId: evalCase.id,
+          status: "failed",
+          completedAt: Date.now(),
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+      continue;
+    }
+
+    const completedAt = nowFn();
+    const rawRequest: JsonObject = {
+      request: promptInputs.request,
+      guidelines: promptInputs.guidelines,
+      guideline_paths: evalCase.guideline_paths,
+      system_message: promptInputs.systemMessage ?? "",
+    } as JsonObject;
+
+    const result: EvaluationResult = {
+      eval_id: evalCase.id,
+      conversation_id: evalCase.conversation_id,
+      score: grade.score,
+      hits: grade.hits,
+      misses: grade.misses,
+      model_answer: providerResponse.text ?? "",
+      expected_aspect_count: grade.expectedAspectCount,
+      target: target.name,
+      timestamp: completedAt.toISOString(),
+      reasoning: grade.reasoning,
+      raw_aspects: grade.rawAspects,
+      raw_request: rawRequest,
+      grader_raw_request: grade.graderRawRequest,
+    };
+
+    results.push(result);
+    if (onResult) {
+      await onResult(result);
+    }
+
+    if (onProgress) {
+      await onProgress({
+        workerId: 1,
+        evalId: evalCase.id,
+        status: "completed",
+        startedAt: 0,
+        completedAt: Date.now(),
+      });
     }
   }
 

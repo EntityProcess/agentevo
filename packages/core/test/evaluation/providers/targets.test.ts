@@ -231,6 +231,22 @@ describe("resolveTargetDefinition", () => {
       ),
     ).toThrow(/GOOGLE_API_KEY/i);
   });
+
+  it("honors provider_batching flag in settings", () => {
+    const target = resolveTargetDefinition(
+      {
+        name: "batched",
+        provider: "mock",
+        settings: {
+          provider_batching: true,
+        },
+      },
+      {},
+    );
+
+    expect(target.kind).toBe("mock");
+    expect(target.providerBatching).toBe(true);
+  });
 });
 
 describe("createProvider", () => {
