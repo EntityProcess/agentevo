@@ -156,6 +156,11 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
     target.providerBatching === true &&
     primaryProvider.supportsBatch === true &&
     typeof primaryProvider.invokeBatch === "function";
+  if (target.providerBatching && !providerSupportsBatch && verbose) {
+    console.warn(
+      `Provider batching requested for target '${target.name}', but provider does not advertise batch support. Using per-case dispatch.`,
+    );
+  }
 
   // Notify about total test count before starting
   if (onProgress && filteredEvalCases.length > 0) {
