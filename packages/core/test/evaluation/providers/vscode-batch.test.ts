@@ -1,37 +1,41 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import * as fsPromises from "node:fs/promises";
 
 import type { ProviderRequest } from "../../../src/evaluation/providers/types.js";
 
-const dispatchBatchAgent = vi.fn();
-vi.mock("subagent", () => ({
-  dispatchBatchAgent,
+const subagentMocks = vi.hoisted(() => ({
+  dispatchBatchAgent: vi.fn(),
   dispatchAgentSession: vi.fn(),
   getSubagentRoot: vi.fn(() => "/tmp/subagents"),
   provisionSubagents: vi.fn(),
 }));
 
+const fsMocks = vi.hoisted(() => ({
+  readFile: vi.fn(),
+}));
+
+vi.mock("subagent", () => subagentMocks);
+vi.mock("node:fs/promises", async () => {
+  const actual = await vi.importActual<typeof import("node:fs/promises")>("node:fs/promises");
+  return { ...actual, readFile: fsMocks.readFile };
+});
+
 // Import after mocking subagent
 // eslint-disable-next-line import/order
 import { VSCodeProvider } from "../../../src/evaluation/providers/vscode.js";
-
-const readFileSpy = vi.spyOn(fsPromises, "readFile");
 
 afterEach(() => {
   vi.clearAllMocks();
 });
 
 describe("VSCodeProvider batching", () => {
-  it("supports batch invocation when responses align and uses no direct attachments", async () => {
-    dispatchBatchAgent.mockResolvedValue({
+  it("supports batch invocation when responses align and forwards attachments", async () => {
+    subagentMocks.dispatchBatchAgent.mockResolvedValue({
       exitCode: 0,
       responseFiles: ["/tmp/res1.md", "/tmp/res2.md"],
       queryCount: 2,
     });
 
-    readFileSpy
-      .mockResolvedValueOnce("resp-one")
-      .mockResolvedValueOnce("resp-two");
+    fsMocks.readFile.mockResolvedValueOnce("resp-one").mockResolvedValueOnce("resp-two");
 
     const provider = new VSCodeProvider(
       "vscode-target",
@@ -52,20 +56,22 @@ describe("VSCodeProvider batching", () => {
 
     expect(responses).toBeDefined();
     expect(responses?.map((r) => r.text)).toEqual(["resp-one", "resp-two"]);
-    expect(dispatchBatchAgent).toHaveBeenCalledTimes(1);
-    const call = dispatchBatchAgent.mock.calls[0]?.[0];
+    expect(subagentMocks.dispatchBatchAgent).toHaveBeenCalledTimes(1);
+    const call = subagentMocks.dispatchBatchAgent.mock.calls[0]?.[0];
     expect(call.userQueries).toHaveLength(2);
-    expect(call.extraAttachments).toBeUndefined();
+    expect(call.extraAttachments).toEqual(
+      expect.arrayContaining([expect.stringMatching(/a\.txt$/), expect.stringMatching(/b\.txt$/)]),
+    );
   });
 
   it("returns empty texts in dry-run mode", async () => {
-    dispatchBatchAgent.mockResolvedValue({
+    subagentMocks.dispatchBatchAgent.mockResolvedValue({
       exitCode: 0,
       responseFiles: ["/tmp/res1.md"],
       queryCount: 1,
     });
 
-    readFileSpy.mockReset(); // Should not be called in dry-run
+    fsMocks.readFile.mockReset(); // Should not be called in dry-run
 
     const provider = new VSCodeProvider(
       "vscode-target",
@@ -83,6 +89,6 @@ describe("VSCodeProvider batching", () => {
 
     expect(responses).toBeDefined();
     expect(responses?.[0]?.text).toBe("");
-    expect(readFileSpy).not.toHaveBeenCalled();
+    expect(fsMocks.readFile).not.toHaveBeenCalled();
   });
 });

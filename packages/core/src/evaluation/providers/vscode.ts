@@ -90,8 +90,7 @@ export class VSCodeProvider implements Provider {
 
     const session = await dispatchBatchAgent({
       userQueries,
-      // Do not attach files directly; batch flow reads guideline/file URLs from req.md content
-      extraAttachments: undefined,
+      extraAttachments: combinedAttachments,
       wait: this.config.waitForResponse,
       dryRun: this.config.dryRun,
       vscodeCmd: this.config.command,
@@ -146,8 +145,15 @@ function buildPromptDocument(
   const parts: string[] = [];
 
   const guidelineFiles = collectGuidelineFiles(attachments, guidelinePatterns);
-  if (guidelineFiles.length > 0) {
-    parts.push("\n", buildMandatoryPrereadBlock(guidelineFiles));
+  const attachmentFiles = collectAttachmentFiles(attachments);
+
+  const nonGuidelineAttachments = attachmentFiles.filter(
+    (file) => !guidelineFiles.includes(file),
+  );
+
+  const prereadBlock = buildMandatoryPrereadBlock(guidelineFiles, nonGuidelineAttachments);
+  if (prereadBlock.length > 0) {
+    parts.push("\n", prereadBlock);
   }
 
   parts.push("\n[[ ## user_query ## ]]\n", request.prompt.trim());
@@ -155,30 +161,36 @@ function buildPromptDocument(
   return parts.join("\n").trim();
 }
 
-function buildMandatoryPrereadBlock(guidelineFiles: readonly string[]): string {
-  if (guidelineFiles.length === 0) {
+function buildMandatoryPrereadBlock(
+  guidelineFiles: readonly string[],
+  attachmentFiles: readonly string[],
+): string {
+  if (guidelineFiles.length === 0 && attachmentFiles.length === 0) {
     return "";
   }
 
-  const fileList: string[] = [];
-  let counter = 0;
+  const buildList = (files: readonly string[]): string[] =>
+    files.map((absolutePath) => {
+      const fileName = path.basename(absolutePath);
+      const fileUri = pathToFileUri(absolutePath);
+      return `* [${fileName}](${fileUri})`;
+    });
 
-  for (const absolutePath of guidelineFiles) {
-    counter += 1;
-    const fileName = path.basename(absolutePath);
-    const fileUri = pathToFileUri(absolutePath);
-    fileList.push(`* [${fileName}](${fileUri})`);
+  const sections: string[] = [];
+  if (guidelineFiles.length > 0) {
+    sections.push(`Read all guideline files:\n${buildList(guidelineFiles).join("\n")}.`);
   }
 
-  const filesText = fileList.join("\n");
+  if (attachmentFiles.length > 0) {
+    sections.push(`Read all attachment files:\n${buildList(attachmentFiles).join("\n")}.`);
+  }
 
-  const instruction = [
-    `Read all guideline files:\n${filesText}.\n`,
-    `If any file is missing, fail with ERROR: missing-file <filename> and stop.\n`,
-    `Then apply system_instructions on the user query below.`,
-  ].join("");
+  sections.push(
+    "If any file is missing, fail with ERROR: missing-file <filename> and stop.",
+    "Then apply system_instructions on the user query below.",
+  );
 
-  return `${instruction}`;
+  return sections.join("\n");
 }
 
 function collectGuidelineFiles(
@@ -201,6 +213,22 @@ function collectGuidelineFiles(
     }
   }
 
+  return Array.from(unique.values());
+}
+
+function collectAttachmentFiles(
+  attachments: readonly string[] | undefined,
+): string[] {
+  if (!attachments || attachments.length === 0) {
+    return [];
+  }
+  const unique = new Map<string, string>();
+  for (const attachment of attachments) {
+    const absolutePath = path.resolve(attachment);
+    if (!unique.has(absolutePath)) {
+      unique.set(absolutePath, absolutePath);
+    }
+  }
   return Array.from(unique.values());
 }
 
