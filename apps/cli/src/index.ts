@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 
 import { registerEvalCommand } from "./commands/eval/index.js";
 import { initCommand } from "./commands/init/index.js";
-import { registerLintCommand } from "./commands/lint/index.js";
+import { registerValidateCommand } from "./commands/validate/index.js";
 import { registerStatusCommand } from "./commands/status.js";
 
 const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
@@ -15,7 +15,7 @@ export function createProgram(): Command {
 
   registerStatusCommand(program);
   registerEvalCommand(program);
-  registerLintCommand(program);
+  registerValidateCommand(program);
 
   // Init command
   program

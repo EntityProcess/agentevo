@@ -114,19 +114,19 @@ guideline_patterns:
 
 See [config.yaml example](docs/examples/simple/.agentv/config.yaml) for more pattern examples.
 
-### Linting Eval Files
+### Validating Eval Files
 
 Validate your eval and targets files before running them:
 
 ```bash
-# Lint a single file
-agentv lint evals/my-eval.yaml
+# Validate a single file
+agentv validate evals/my-eval.yaml
 
-# Lint multiple files
-agentv lint evals/eval1.yaml evals/eval2.yaml
+# Validate multiple files
+agentv validate evals/eval1.yaml evals/eval2.yaml
 
-# Lint entire directory (recursively finds all YAML files)
-agentv lint evals/
+# Validate entire directory (recursively finds all YAML files)
+agentv validate evals/
 ```
 
 **File type detection:**

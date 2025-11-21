@@ -3,38 +3,38 @@
 ## Purpose
 TBD - created by archiving change add-eval-linter. Update Purpose after archive.
 ## Requirements
-### Requirement: Lint Command
+### Requirement: Validate Command
 
-The system SHALL provide a `lint` command that validates AgentV YAML configuration files.
+The system SHALL provide a `validate` command that validates AgentV YAML configuration files.
 
-#### Scenario: Lint single eval file
+#### Scenario: Validate single eval file
 
-- **WHEN** user runs `agentv lint path/to/test.yaml`
+- **WHEN** user runs `agentv validate path/to/test.yaml`
 - **THEN** the file is validated against eval schema and all errors are reported
 
-#### Scenario: Lint targets file
+#### Scenario: Validate targets file
 
-- **WHEN** user runs `agentv lint .agentv/targets.yaml`
+- **WHEN** user runs `agentv validate .agentv/targets.yaml`
 - **THEN** the file is validated against targets schema and all errors are reported
 
-#### Scenario: Lint entire directory
+#### Scenario: Validate entire directory
 
-- **WHEN** user runs `agentv lint ./evals`
+- **WHEN** user runs `agentv validate ./evals`
 - **THEN** all YAML files in the directory (recursive) are validated based on their `$schema` field and results aggregated
 
 #### Scenario: Multiple paths
 
-- **WHEN** user runs `agentv lint file1.yaml file2.yaml targets.yaml`
+- **WHEN** user runs `agentv validate file1.yaml file2.yaml targets.yaml`
 - **THEN** each file is validated in order and all errors are collected
 
 #### Scenario: Exit code on failure
 
-- **WHEN** lint command finds validation errors
+- **WHEN** validate command finds validation errors
 - **THEN** it exits with non-zero exit code for CI integration
 
 #### Scenario: Exit code on success
 
-- **WHEN** all linted files pass validation
+- **WHEN** all validated files pass validation
 - **THEN** it exits with zero exit code
 
 ### Requirement: File Type Detection
@@ -126,7 +126,7 @@ The system SHALL validate that file URLs referenced in eval files exist.
 #### Scenario: File reference in content array
 
 - **WHEN** content block has `type: file` and `value` field
-- **THEN** linter validates the file exists
+- **THEN** validator validates the file exists
 
 #### Scenario: Relative path resolution
 
@@ -159,7 +159,7 @@ The system SHALL provide clear, actionable error messages.
 
 #### Scenario: Summary statistics
 
-- **WHEN** linting completes
+- **WHEN** validation completes
 - **THEN** summary shows total files checked, passed, failed
 
 ### Requirement: Output Formatting
@@ -182,7 +182,7 @@ The system SHALL validate files efficiently for large codebases.
 
 #### Scenario: Parallel validation
 
-- **WHEN** linting directory with many files
+- **WHEN** validating directory with many files
 - **THEN** files are validated in parallel up to CPU core count
 
 #### Scenario: Early exit on critical error
@@ -192,6 +192,6 @@ The system SHALL validate files efficiently for large codebases.
 
 #### Scenario: Fast feedback
 
-- **WHEN** linting 100 eval files
+- **WHEN** validating 100 eval files
 - **THEN** validation completes in under 5 seconds on modern hardware
 

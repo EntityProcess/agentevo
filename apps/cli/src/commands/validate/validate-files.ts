@@ -13,16 +13,16 @@ import path from "node:path";
 
 
 /**
- * Lint YAML files for AgentV schema compliance.
+ * Validate YAML files for AgentV schema compliance.
  */
-export async function lintFiles(
+export async function validateFiles(
   paths: readonly string[],
 ): Promise<ValidationSummary> {
   const filePaths = await expandPaths(paths);
   const results: ValidationResult[] = [];
 
   for (const filePath of filePaths) {
-    const result = await lintSingleFile(filePath);
+    const result = await validateSingleFile(filePath);
     results.push(result);
   }
 
@@ -37,7 +37,7 @@ export async function lintFiles(
   };
 }
 
-async function lintSingleFile(
+async function validateSingleFile(
   filePath: string,
 ): Promise<ValidationResult> {
   const absolutePath = path.resolve(filePath);
