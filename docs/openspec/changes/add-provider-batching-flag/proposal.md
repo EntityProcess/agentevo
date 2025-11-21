@@ -7,7 +7,8 @@ Teams need a declarative way to tell AgentV to batch all eval queries through a 
 ## What Changes
 
 - Add a `provider_batching: true` setting to target schemas to request provider-level batching when supported.
-- Require graceful fallback to per-case dispatch if the provider does not support batching.
+- Implement provider-managed batching for VS Code providers (`supportsBatch` + `invokeBatch` using subagent multi-query dispatch) with ordered per-eval responses.
+- Emit a verbose warning and fall back to per-case dispatch when batching is requested but unsupported or fails.
 
 ## Impact
 

@@ -1,7 +1,12 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { dispatchAgentSession, getSubagentRoot, provisionSubagents } from "subagent";
+import {
+  dispatchAgentSession,
+  dispatchBatchAgent,
+  getSubagentRoot,
+  provisionSubagents,
+} from "subagent";
 
 import { isGuidelineFile } from "../yaml-parser.js";
 import type { VSCodeResolvedConfig } from "./targets.js";
@@ -13,6 +18,7 @@ export class VSCodeProvider implements Provider {
   readonly id: string;
   readonly kind: "vscode" | "vscode-insiders";
   readonly targetName: string;
+  readonly supportsBatch = true;
 
   private readonly config: VSCodeResolvedConfig;
 
@@ -70,6 +76,65 @@ export class VSCodeProvider implements Provider {
         attachments,
       },
     };
+  }
+
+  async invokeBatch(requests: readonly ProviderRequest[]): Promise<readonly ProviderResponse[]> {
+    if (requests.length === 0) {
+      return [];
+    }
+
+    const combinedAttachments = mergeAttachments(requests.map((req) => req.attachments));
+    const userQueries = requests.map((req) =>
+      buildPromptDocument(req, combinedAttachments, req.guideline_patterns),
+    );
+
+    const session = await dispatchBatchAgent({
+      userQueries,
+      // Do not attach files directly; batch flow reads guideline/file URLs from req.md content
+      extraAttachments: undefined,
+      wait: this.config.waitForResponse,
+      dryRun: this.config.dryRun,
+      vscodeCmd: this.config.command,
+      subagentRoot: this.config.subagentRoot,
+      workspaceTemplate: this.config.workspaceTemplate,
+      silent: true,
+    });
+
+    if (session.exitCode !== 0 || !session.responseFiles) {
+      const failure = session.error ?? "VS Code subagent did not produce batch responses";
+      throw new Error(failure);
+    }
+
+    if (this.config.dryRun) {
+      return requests.map(() => ({
+        text: "",
+        raw: {
+          session,
+          attachments: combinedAttachments,
+        },
+      }));
+    }
+
+    if (session.responseFiles.length !== requests.length) {
+      throw new Error(
+        `VS Code batch returned ${session.responseFiles.length} responses for ${requests.length} requests`,
+      );
+    }
+
+    const responses: ProviderResponse[] = [];
+    for (const responseFile of session.responseFiles) {
+      const responseText = await readFile(responseFile, "utf8");
+      responses.push({
+        text: responseText,
+        raw: {
+          session,
+          attachments: combinedAttachments,
+          responseFile,
+        },
+      });
+    }
+
+    return responses;
   }
 }
 
@@ -170,6 +235,17 @@ function normalizeAttachments(attachments: readonly string[] | undefined): strin
     deduped.add(path.resolve(attachment));
   }
   return Array.from(deduped);
+}
+
+function mergeAttachments(all: readonly (readonly string[] | undefined)[]): string[] | undefined {
+  const deduped = new Set<string>();
+  for (const list of all) {
+    if (!list) continue;
+    for (const attachment of list) {
+      deduped.add(path.resolve(attachment));
+    }
+  }
+  return deduped.size > 0 ? Array.from(deduped) : undefined;
 }
 
 export interface EnsureSubagentsOptions {
