@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 
-import { buildPromptDocument, collectGuidelineFiles, normalizeAttachments } from "./preread.js";
+import { buildPromptDocument, collectGuidelineFiles, normalizeInputFiles } from "./preread.js";
 import type { CodexResolvedConfig } from "./targets.js";
 import type { Provider, ProviderRequest, ProviderResponse } from "./types.js";
 
@@ -59,20 +59,20 @@ export class CodexProvider implements Provider {
 
     await this.ensureEnvironmentReady();
 
-    const attachments = normalizeAttachments(request.attachments);
+    const inputFiles = normalizeInputFiles(request.inputFiles);
     const originalGuidelines = new Set(
-      collectGuidelineFiles(attachments, request.guideline_patterns).map((file) => path.resolve(file)),
+      collectGuidelineFiles(inputFiles, request.guideline_patterns).map((file) => path.resolve(file)),
     );
 
     const workspaceRoot = await this.createWorkspace();
     try {
-      const { mirroredAttachments, guidelineMirrors } = await this.mirrorAttachments(
-        attachments,
+      const { mirroredInputFiles, guidelineMirrors } = await this.mirrorInputFiles(
+        inputFiles,
         workspaceRoot,
         originalGuidelines,
       );
 
-      const promptContent = buildPromptDocument(request, mirroredAttachments, {
+      const promptContent = buildPromptDocument(request, mirroredInputFiles, {
         guidelinePatterns: request.guideline_patterns,
         guidelineOverrides: guidelineMirrors,
       });
@@ -110,7 +110,7 @@ export class CodexProvider implements Provider {
           executable: this.resolvedExecutable ?? this.config.executable,
           promptFile,
           workspace: workspaceRoot,
-          attachments: mirroredAttachments,
+          inputFiles: mirroredInputFiles,
         },
       };
     } finally {
@@ -173,17 +173,17 @@ export class CodexProvider implements Provider {
     }
   }
 
-  private async mirrorAttachments(
-    attachments: readonly string[] | undefined,
+  private async mirrorInputFiles(
+    inputFiles: readonly string[] | undefined,
     workspaceRoot: string,
     guidelineOriginals: ReadonlySet<string>,
   ): Promise<{
-    readonly mirroredAttachments: readonly string[] | undefined;
+    readonly mirroredInputFiles: readonly string[] | undefined;
     readonly guidelineMirrors: ReadonlySet<string>;
   }> {
-    if (!attachments || attachments.length === 0) {
+    if (!inputFiles || inputFiles.length === 0) {
       return {
-        mirroredAttachments: undefined,
+        mirroredInputFiles: undefined,
         guidelineMirrors: new Set<string>(),
       };
     }
@@ -195,8 +195,8 @@ export class CodexProvider implements Provider {
     const guidelineMirrors = new Set<string>();
     const nameCounts = new Map<string, number>();
 
-    for (const attachment of attachments) {
-      const absoluteSource = path.resolve(attachment);
+    for (const inputFile of inputFiles) {
+      const absoluteSource = path.resolve(inputFile);
       const baseName = path.basename(absoluteSource);
       const count = nameCounts.get(baseName) ?? 0;
       nameCounts.set(baseName, count + 1);
@@ -211,7 +211,7 @@ export class CodexProvider implements Provider {
     }
 
     return {
-      mirroredAttachments: mirrored,
+      mirroredInputFiles: mirrored,
       guidelineMirrors,
     };
   }

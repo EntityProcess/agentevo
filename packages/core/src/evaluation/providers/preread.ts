@@ -10,23 +10,23 @@ export interface PromptDocumentOptions {
 
 export function buildPromptDocument(
   request: ProviderRequest,
-  attachments: readonly string[] | undefined,
+  inputFiles: readonly string[] | undefined,
   options?: PromptDocumentOptions,
 ): string {
   const parts: string[] = [];
 
   const guidelineFiles = collectGuidelineFiles(
-    attachments,
+    inputFiles,
     options?.guidelinePatterns ?? request.guideline_patterns,
     options?.guidelineOverrides,
   );
-  const attachmentFiles = collectAttachmentFiles(attachments);
+  const inputFilesList = collectInputFiles(inputFiles);
 
-  const nonGuidelineAttachments = attachmentFiles.filter(
+  const nonGuidelineInputFiles = inputFilesList.filter(
     (file) => !guidelineFiles.includes(file),
   );
 
-  const prereadBlock = buildMandatoryPrereadBlock(guidelineFiles, nonGuidelineAttachments);
+  const prereadBlock = buildMandatoryPrereadBlock(guidelineFiles, nonGuidelineInputFiles);
   if (prereadBlock.length > 0) {
     parts.push("\n", prereadBlock);
   }
@@ -36,13 +36,13 @@ export function buildPromptDocument(
   return parts.join("\n").trim();
 }
 
-export function normalizeAttachments(attachments: readonly string[] | undefined): string[] | undefined {
-  if (!attachments || attachments.length === 0) {
+export function normalizeInputFiles(inputFiles: readonly string[] | undefined): string[] | undefined {
+  if (!inputFiles || inputFiles.length === 0) {
     return undefined;
   }
   const deduped = new Map<string, string>();
-  for (const attachment of attachments) {
-    const absolutePath = path.resolve(attachment);
+  for (const inputFile of inputFiles) {
+    const absolutePath = path.resolve(inputFile);
     if (!deduped.has(absolutePath)) {
       deduped.set(absolutePath, absolutePath);
     }
@@ -51,17 +51,17 @@ export function normalizeAttachments(attachments: readonly string[] | undefined)
 }
 
 export function collectGuidelineFiles(
-  attachments: readonly string[] | undefined,
+  inputFiles: readonly string[] | undefined,
   guidelinePatterns: readonly string[] | undefined,
   overrides?: ReadonlySet<string>,
 ): string[] {
-  if (!attachments || attachments.length === 0) {
+  if (!inputFiles || inputFiles.length === 0) {
     return [];
   }
 
   const unique = new Map<string, string>();
-  for (const attachment of attachments) {
-    const absolutePath = path.resolve(attachment);
+  for (const inputFile of inputFiles) {
+    const absolutePath = path.resolve(inputFile);
     if (overrides?.has(absolutePath)) {
       if (!unique.has(absolutePath)) {
         unique.set(absolutePath, absolutePath);
@@ -80,13 +80,13 @@ export function collectGuidelineFiles(
   return Array.from(unique.values());
 }
 
-function collectAttachmentFiles(attachments: readonly string[] | undefined): string[] {
-  if (!attachments || attachments.length === 0) {
+function collectInputFiles(inputFiles: readonly string[] | undefined): string[] {
+  if (!inputFiles || inputFiles.length === 0) {
     return [];
   }
   const unique = new Map<string, string>();
-  for (const attachment of attachments) {
-    const absolutePath = path.resolve(attachment);
+  for (const inputFile of inputFiles) {
+    const absolutePath = path.resolve(inputFile);
     if (!unique.has(absolutePath)) {
       unique.set(absolutePath, absolutePath);
     }
@@ -96,9 +96,9 @@ function collectAttachmentFiles(attachments: readonly string[] | undefined): str
 
 function buildMandatoryPrereadBlock(
   guidelineFiles: readonly string[],
-  attachmentFiles: readonly string[],
+  inputFiles: readonly string[],
 ): string {
-  if (guidelineFiles.length === 0 && attachmentFiles.length === 0) {
+  if (guidelineFiles.length === 0 && inputFiles.length === 0) {
     return "";
   }
 
@@ -114,8 +114,8 @@ function buildMandatoryPrereadBlock(
     sections.push(`Read all guideline files:\n${buildList(guidelineFiles).join("\n")}.`);
   }
 
-  if (attachmentFiles.length > 0) {
-    sections.push(`Read all attachment files:\n${buildList(attachmentFiles).join("\n")}.`);
+  if (inputFiles.length > 0) {
+    sections.push(`Read all input files:\n${buildList(inputFiles).join("\n")}.`);
   }
 
   sections.push(

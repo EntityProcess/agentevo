@@ -21,7 +21,7 @@ describe("CodexProvider", () => {
     await rm(fixturesRoot, { recursive: true, force: true });
   });
 
-  it("mirrors attachments and composes preread block", async () => {
+  it("mirrors input files and composes preread block", async () => {
     const runner = vi.fn(async () => ({
       stdout: JSON.stringify({ messages: [{ role: "assistant", content: "done" }] }),
       stderr: "",
@@ -47,7 +47,7 @@ describe("CodexProvider", () => {
 
     const request: ProviderRequest = {
       prompt: "Implement feature",
-      attachments: [guidelineFile, attachmentFile],
+      inputFiles: [guidelineFile, attachmentFile],
       guideline_patterns: ["**/*.instructions.md"],
     };
 
@@ -78,10 +78,10 @@ describe("CodexProvider", () => {
     expect(invocation.prompt).toContain("[[ ## user_query ## ]]");
 
     const raw = response.raw as Record<string, unknown>;
-    const mirroredAttachments = raw.attachments as readonly string[];
-    expect(Array.isArray(mirroredAttachments)).toBe(true);
-    expect(mirroredAttachments?.length).toBe(2);
-    mirroredAttachments?.forEach((filePath) => {
+    const mirroredInputFiles = raw.inputFiles as readonly string[];
+    expect(Array.isArray(mirroredInputFiles)).toBe(true);
+    expect(mirroredInputFiles?.length).toBe(2);
+    mirroredInputFiles?.forEach((filePath) => {
       expect(filePath).toMatch(/agentv-codex-/);
     });
   });

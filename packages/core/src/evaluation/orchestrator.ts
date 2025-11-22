@@ -335,7 +335,7 @@ async function runBatchEvaluation(options: {
       prompt: promptInputs.request,
       guidelines: promptInputs.guidelines,
       guideline_patterns: evalCase.guideline_patterns,
-      attachments: evalCase.file_paths,
+      inputFiles: evalCase.file_paths,
       evalCaseId: evalCase.id,
       metadata: {
         systemPrompt: promptInputs.systemMessage ?? "",
@@ -795,7 +795,7 @@ async function runCodeEvaluator(options: {
       output: candidate,
       system_message: promptInputs.systemMessage ?? "",
       guideline_paths: evalCase.guideline_paths,
-      attachments: evalCase.file_paths,
+      file_paths: evalCase.file_paths,
       user_segments: evalCase.user_segments,
     },
     null,
@@ -1008,7 +1008,7 @@ async function invokeProvider(
       prompt: promptInputs.request,
       guidelines: promptInputs.guidelines,
       guideline_patterns: evalCase.guideline_patterns,
-      attachments: evalCase.file_paths,
+      inputFiles: evalCase.file_paths,
       evalCaseId: evalCase.id,
       attempt,
       metadata: {
