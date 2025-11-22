@@ -382,34 +382,6 @@ import {
 
 ---
 
-## REMOVED Requirements
-
-### Requirement: Grader Types Removed (REQ-EVAL-011)
-
-The system SHALL no longer export grader-related types.
-
-#### Scenario: Attempting to import removed types
-
-**Given** a developer attempts to import removed grader types
-
-**When** they try to import `Grader`, `GraderKind`, `QualityGrader`, `GradeContext`, or `GradeResult`
-
-**Then** they must receive a TypeScript compilation error
-
-**And** they must be directed to use the new evaluator types instead
-
-#### Scenario: Heuristic grader removed
-
-**Given** the heuristic grader was removed in a previous change
-
-**When** a developer attempts to use it
-
-**Then** it must not be available in any form
-
-**And** `GraderKind` type must not include `"heuristic"` value
-
----
-
 ## RENAMED Requirements
 
 ### Requirement: File Renames (REQ-EVAL-012)

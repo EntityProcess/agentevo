@@ -133,26 +133,7 @@ export function isTestMessage(value: unknown): value is TestMessage {
   return candidate.content.every(isJsonObject);
 }
 
-const GRADER_KIND_VALUES = ["llm_judge"] as const;
 
-/**
- * Supported legacy grader implementations (used when evaluators are absent).
- */
-export const GRADER_KINDS = GRADER_KIND_VALUES;
-
-/**
- * Grader identifiers available to the pipeline.
- */
-export type GraderKind = (typeof GRADER_KIND_VALUES)[number];
-
-const GRADER_KIND_SET: ReadonlySet<string> = new Set(GRADER_KIND_VALUES);
-
-/**
- * Guard validating grader identifiers.
- */
-export function isGraderKind(value: unknown): value is GraderKind {
-  return typeof value === "string" && GRADER_KIND_SET.has(value);
-}
 
 const EVALUATOR_KIND_VALUES = ["code", "llm_judge"] as const;
 
@@ -198,7 +179,7 @@ export interface EvalCase {
   readonly file_paths: readonly string[];
   readonly code_snippets: readonly string[];
   readonly outcome: string;
-  readonly grader?: GraderKind;
+  readonly evaluator?: EvaluatorKind;
   readonly evaluators?: readonly EvaluatorConfig[];
 }
 
@@ -218,7 +199,7 @@ export interface EvaluationResult {
   readonly reasoning?: string;
   readonly raw_aspects?: readonly string[];
   readonly raw_request?: JsonObject;
-  readonly grader_raw_request?: JsonObject;
+  readonly evaluator_raw_request?: JsonObject;
   readonly evaluator_results?: readonly EvaluatorResult[];
 }
 
@@ -230,7 +211,7 @@ export interface EvaluatorResult {
   readonly misses: readonly string[];
   readonly reasoning?: string;
   readonly raw_request?: JsonObject;
-  readonly grader_raw_request?: JsonObject;
+  readonly evaluator_raw_request?: JsonObject;
 }
 
 /**

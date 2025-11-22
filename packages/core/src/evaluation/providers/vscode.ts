@@ -2,9 +2,9 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { dispatchAgentSession, dispatchBatchAgent, getSubagentRoot, provisionSubagents } from "subagent";
 
-import { buildPromptDocument, normalizeInputFiles } from "./preread.js";
 import type { VSCodeResolvedConfig } from "./targets.js";
 import type { Provider, ProviderRequest, ProviderResponse } from "./types.js";
+import { isGuidelineFile } from "../yaml-parser.js";
 
 export class VSCodeProvider implements Provider {
   readonly id: string;
@@ -30,11 +30,11 @@ export class VSCodeProvider implements Provider {
       throw new Error("VS Code provider request was aborted before dispatch");
     }
 
-    const inputFiles = normalizeInputFiles(request.inputFiles);
-    const promptContent = buildPromptDocument(request, inputFiles);
+    const inputFiles = normalizeAttachments(request.inputFiles);
+    const promptContent = buildPromptDocument(request, inputFiles, request.guidelinePatterns);
 
     const session = await dispatchAgentSession({
-      userQuery: promptContent,  // Use full prompt content instead of just request.prompt
+      userQuery: promptContent,
       extraAttachments: inputFiles,
       wait: this.config.waitForResponse,
       dryRun: this.config.dryRun,
@@ -77,14 +77,14 @@ export class VSCodeProvider implements Provider {
 
     const normalizedRequests = requests.map((req) => ({
       request: req,
-      inputFiles: normalizeInputFiles(req.inputFiles),
+      inputFiles: normalizeAttachments(req.inputFiles),
     }));
 
-    const combinedInputFiles = mergeInputFiles(
+    const combinedInputFiles = mergeAttachments(
       normalizedRequests.map(({ inputFiles }) => inputFiles),
     );
     const userQueries = normalizedRequests.map(({ request, inputFiles }) =>
-      buildPromptDocument(request, inputFiles),
+      buildPromptDocument(request, inputFiles, request.guidelinePatterns),
     );
 
     const session = await dispatchBatchAgent({
@@ -138,7 +138,135 @@ export class VSCodeProvider implements Provider {
   }
 }
 
-function mergeInputFiles(all: readonly (readonly string[] | undefined)[]): string[] | undefined {
+function buildPromptDocument(
+  request: ProviderRequest,
+  attachments: readonly string[] | undefined,
+  guidelinePatterns: readonly string[] | undefined,
+): string {
+  const parts: string[] = [];
+
+  const guidelineFiles = collectGuidelineFiles(attachments, guidelinePatterns);
+  const attachmentFiles = collectAttachmentFiles(attachments);
+
+  const nonGuidelineAttachments = attachmentFiles.filter(
+    (file) => !guidelineFiles.includes(file),
+  );
+
+  const prereadBlock = buildMandatoryPrereadBlock(guidelineFiles, nonGuidelineAttachments);
+  if (prereadBlock.length > 0) {
+    parts.push("\n", prereadBlock);
+  }
+
+  parts.push("\n[[ ## user_query ## ]]\n", request.prompt.trim());
+
+  return parts.join("\n").trim();
+}
+
+function buildMandatoryPrereadBlock(
+  guidelineFiles: readonly string[],
+  attachmentFiles: readonly string[],
+): string {
+  if (guidelineFiles.length === 0 && attachmentFiles.length === 0) {
+    return "";
+  }
+
+  const buildList = (files: readonly string[]): string[] =>
+    files.map((absolutePath) => {
+      const fileName = path.basename(absolutePath);
+      const fileUri = pathToFileUri(absolutePath);
+      return `* [${fileName}](${fileUri})`;
+    });
+
+  const sections: string[] = [];
+  if (guidelineFiles.length > 0) {
+    sections.push(`Read all guideline files:\n${buildList(guidelineFiles).join("\n")}.`);
+  }
+
+  if (attachmentFiles.length > 0) {
+    sections.push(`Read all attachment files:\n${buildList(attachmentFiles).join("\n")}.`);
+  }
+
+  sections.push(
+    "If any file is missing, fail with ERROR: missing-file <filename> and stop.",
+    "Then apply system_instructions on the user query below.",
+  );
+
+  return sections.join("\n");
+}
+
+function collectGuidelineFiles(
+  attachments: readonly string[] | undefined,
+  guidelinePatterns: readonly string[] | undefined,
+): string[] {
+  if (!attachments || attachments.length === 0) {
+    return [];
+  }
+
+  const unique = new Map<string, string>();
+  for (const attachment of attachments) {
+    const absolutePath = path.resolve(attachment);
+    const normalized = absolutePath.split(path.sep).join("/");
+    
+    if (isGuidelineFile(normalized, guidelinePatterns)) {
+      if (!unique.has(absolutePath)) {
+        unique.set(absolutePath, absolutePath);
+      }
+    }
+  }
+
+  return Array.from(unique.values());
+}
+
+function collectAttachmentFiles(
+  attachments: readonly string[] | undefined,
+): string[] {
+  if (!attachments || attachments.length === 0) {
+    return [];
+  }
+  const unique = new Map<string, string>();
+  for (const attachment of attachments) {
+    const absolutePath = path.resolve(attachment);
+    if (!unique.has(absolutePath)) {
+      unique.set(absolutePath, absolutePath);
+    }
+  }
+  return Array.from(unique.values());
+}
+
+function pathToFileUri(filePath: string): string {
+  // Convert to absolute path if relative
+  const absolutePath = path.isAbsolute(filePath) ? filePath : path.resolve(filePath);
+
+  // On Windows, convert backslashes to forward slashes
+  const normalizedPath = absolutePath.replace(/\\/g, "/");
+
+  // Handle Windows drive letters (e.g., C:/ becomes file:///C:/)
+  if (/^[a-zA-Z]:\//.test(normalizedPath)) {
+    return `file:///${normalizedPath}`;
+  }
+
+  // Unix-like paths
+  return `file://${normalizedPath}`;
+}
+
+function _composeUserQuery(request: ProviderRequest): string {
+  // For VS Code, guidelines are handled via file attachments
+  // Do NOT include guideline content in the user query
+  return request.prompt.trim();
+}
+
+function normalizeAttachments(attachments: readonly string[] | undefined): string[] | undefined {
+  if (!attachments || attachments.length === 0) {
+    return undefined;
+  }
+  const deduped = new Set<string>();
+  for (const attachment of attachments) {
+    deduped.add(path.resolve(attachment));
+  }
+  return Array.from(deduped);
+}
+
+function mergeAttachments(all: readonly (readonly string[] | undefined)[]): string[] | undefined {
   const deduped = new Set<string>();
   for (const list of all) {
     if (!list) continue;

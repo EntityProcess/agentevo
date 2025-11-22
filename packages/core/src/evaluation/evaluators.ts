@@ -13,6 +13,7 @@ export interface EvaluationContext {
   readonly promptInputs: {
     readonly request: string;
     readonly guidelines: string;
+    readonly systemMessage?: string;
   };
   readonly now: Date;
   readonly judgeProvider?: Provider;
@@ -263,4 +264,140 @@ function extractJsonBlob(text: string): string | undefined {
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+// Code Evaluator
+
+export interface CodeEvaluatorOptions {
+  readonly script: string;
+  readonly cwd?: string;
+  readonly agentTimeoutMs?: number;
+}
+
+export class CodeEvaluator implements Evaluator {
+  readonly kind = "code";
+
+  private readonly script: string;
+  private readonly cwd?: string;
+  private readonly agentTimeoutMs?: number;
+
+  constructor(options: CodeEvaluatorOptions) {
+    this.script = options.script;
+    this.cwd = options.cwd;
+    this.agentTimeoutMs = options.agentTimeoutMs;
+  }
+
+  async evaluate(context: EvaluationContext): Promise<EvaluationScore> {
+    const inputPayload = JSON.stringify(
+      {
+        task: context.evalCase.task,
+        outcome: context.evalCase.outcome,
+        expected: context.evalCase.expected_assistant_raw,
+        output: context.candidate,
+        system_message: context.promptInputs.systemMessage ?? "",
+        guideline_paths: context.evalCase.guideline_paths,
+        attachments: context.evalCase.file_paths,
+        user_segments: context.evalCase.user_segments,
+      },
+      null,
+      2,
+    );
+
+    try {
+      const stdout = await executeScript(this.script, inputPayload, this.agentTimeoutMs, this.cwd);
+      const parsed = parseJsonSafe(stdout);
+      const score = clampScore(typeof parsed?.score === "number" ? parsed.score : 0);
+      const hits = Array.isArray(parsed?.hits) ? parsed.hits.filter(isNonEmptyString) : [];
+      const misses = Array.isArray(parsed?.misses) ? parsed.misses.filter(isNonEmptyString) : [];
+      const reasoning = typeof parsed?.reasoning === "string" ? parsed.reasoning : undefined;
+
+      return {
+        score,
+        hits,
+        misses,
+        expectedAspectCount: hits.length + misses.length || 1,
+        reasoning,
+        evaluatorRawRequest: {
+          script: this.script,
+          ...(this.cwd ? { cwd: this.cwd } : {}),
+        },
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        score: 0,
+        hits: [],
+        misses: [`Code evaluator failed: ${message}`],
+        expectedAspectCount: 1,
+        reasoning: message,
+        evaluatorRawRequest: {
+          script: this.script,
+          ...(this.cwd ? { cwd: this.cwd } : {}),
+          error: message,
+        },
+      };
+    }
+  }
+}
+
+// Helper functions for CodeEvaluator
+
+async function executeScript(
+  scriptPath: string,
+  input: string,
+  agentTimeoutMs?: number,
+  cwd?: string,
+): Promise<string> {
+  const { spawn } = await import("node:child_process");
+  
+  return await new Promise<string>((resolve, reject) => {
+    const child = spawn(scriptPath, {
+      shell: true,
+      cwd,
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    const timeout = agentTimeoutMs
+      ? setTimeout(() => {
+          child.kill();
+          reject(new Error(`Code evaluator timed out after ${agentTimeoutMs}ms`));
+        }, agentTimeoutMs)
+      : undefined;
+
+    child.stdout?.on("data", (data) => {
+      stdout += data.toString();
+    });
+    child.stderr?.on("data", (data) => {
+      stderr += data.toString();
+    });
+    child.on("error", (error) => {
+      if (timeout !== undefined) {
+        clearTimeout(timeout);
+      }
+      reject(error);
+    });
+    child.on("exit", (code) => {
+      if (timeout !== undefined) {
+        clearTimeout(timeout);
+      }
+      if (code && code !== 0 && stderr.length > 0) {
+        reject(new Error(`Code evaluator exited with code ${code}: ${stderr.trim()}`));
+        return;
+      }
+      resolve(stdout.trim());
+    });
+
+    child.stdin?.write(input);
+    child.stdin?.end();
+  });
+}
+
+function parseJsonSafe(payload: string): Record<string, unknown> | undefined {
+  try {
+    return JSON.parse(payload) as Record<string, unknown>;
+  } catch {
+    return undefined;
+  }
 }
