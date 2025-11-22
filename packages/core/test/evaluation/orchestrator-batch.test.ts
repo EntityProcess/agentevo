@@ -46,7 +46,9 @@ const stubEvaluator: Evaluator = {
 };
 
 const target: ResolvedTarget = {
+  kind: "mock",
   name: "stub-target",
+  providerBatching: true,
   config: {},
 };
 

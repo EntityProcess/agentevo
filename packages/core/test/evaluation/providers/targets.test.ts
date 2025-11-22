@@ -259,13 +259,13 @@ describe("resolveTargetDefinition", () => {
         name: "shell-cli",
         provider: "cli",
         settings: {
-          command_template: "code chat {PROMPT} {ATTACHMENTS}",
+          command_template: "code chat {PROMPT} {FILES}",
           cwd: "WORKDIR",
           env: {
             API_TOKEN: "CLI_TOKEN",
           },
           timeout_seconds: 3,
-          attachments_format: "--file {path}",
+          files_format: "--file {path}",
         },
       },
       env,
@@ -280,7 +280,7 @@ describe("resolveTargetDefinition", () => {
     expect(target.config.cwd).toBe("/tmp/project");
     expect(target.config.env?.API_TOKEN).toBe("secret-token");
     expect(target.config.timeoutMs).toBe(3000);
-    expect(target.config.attachmentsFormat).toBe("--file {path}");
+    expect(target.config.filesFormat).toBe("--file {path}");
   });
 
   it("throws for unknown cli placeholders", () => {

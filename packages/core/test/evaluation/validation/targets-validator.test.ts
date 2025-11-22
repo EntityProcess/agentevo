@@ -182,8 +182,8 @@ targets:
   - name: cli-target
     provider: cli
     settings:
-      commandTemplate: "code chat {PROMPT} {ATTACHMENTS}"
-      attachmentsFormat: "--file {path}"
+      commandTemplate: "code chat {PROMPT} {FILES}"
+      filesFormat: "--file {path}"
       timeoutSeconds: 5
       env:
         API_TOKEN: "TOKEN_ENV"
