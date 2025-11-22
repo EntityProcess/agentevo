@@ -2,9 +2,7 @@
 
 ## Purpose
 Provides comprehensive AI agent evaluation capabilities including test case execution, multi-provider LLM integration, heuristic and LLM-based grading, configurable output formats, and statistical analysis of evaluation results.
-
 ## Requirements
-
 ### Requirement: Test Case Execution
 
 The system SHALL execute evaluation test cases with configurable providers, retry logic, and optional parallel execution.
@@ -30,28 +28,6 @@ The system SHALL execute evaluation test cases with configurable providers, retr
 - **THEN** the system records a failure result with error details
 - **AND** continues with the next test case or batch
 - **AND** does not block other parallel workers
-
-### Requirement: Heuristic Grading
-
-The system SHALL calculate heuristic scores based on expected hits and misses in test responses.
-
-#### Scenario: Calculate hits score
-
-- **WHEN** a test response contains expected keywords
-- **THEN** the system identifies matching keywords as hits
-- **AND** calculates a hit ratio (hits / total expected)
-
-#### Scenario: Calculate misses score
-
-- **WHEN** a test response contains unexpected keywords
-- **THEN** the system identifies matching keywords as misses
-- **AND** calculates a miss ratio (misses / total forbidden)
-
-#### Scenario: Error detection
-
-- **WHEN** a test response contains error-like patterns (stack traces, error keywords)
-- **THEN** the system flags the response as containing an error
-- **AND** includes error detection in the grading result
 
 ### Requirement: LLM-Based Grading
 
@@ -118,6 +94,15 @@ The system SHALL support multiple LLM providers with environment-based configura
 - **THEN** the system generates a structured prompt file with preread block and SHA tokens
 - **AND** invokes the subagent library to execute the prompt
 - **AND** captures the Copilot response
+
+#### Scenario: Codex CLI provider
+
+- **WHEN** a test case uses the "codex" provider
+- **THEN** the system locates the Codex CLI executable (default `codex`, overrideable via the target)
+- **AND** it mirrors guideline and attachment files into a scratch workspace, emitting the same preread block links used by the VS Code provider so Codex opens every referenced file before answering
+- **AND** it renders the eval prompt into a single string and launches `codex exec --json` plus any configured profile, model, approval preset, and working-directory overrides defined on the target
+- **AND** it verifies the Codex executable is available while delegating profile/config resolution to the CLI itself
+- **AND** it parses the emitted JSONL event stream to capture the final assistant message as the provider response, attaching stdout/stderr when the CLI exits non-zero or returns malformed JSON
 
 #### Scenario: Mock provider for dry-run
 
@@ -549,4 +534,23 @@ The system SHALL validate CLI template targets so authors must specify the comma
 - **WHEN** a CLI target includes `healthcheck`
 - **THEN** validation accepts `{ type: "http", url, timeoutSeconds? }` or `{ type: "command", commandTemplate }`
 - **AND** rejects unsupported types or missing properties with specific errors
+
+### Requirement: Custom Evaluators
+The system SHALL support defining multiple evaluators in the `evaluators` list, including custom LLM judges.
+
+#### Scenario: User defines multiple evaluators in YAML
+Given an eval file with an `evaluators` list containing a "code" check and an "llm_judge"
+When the evaluation runs
+Then both evaluators are executed
+And the final result reflects the scores from both.
+
+#### Scenario: User provides custom prompt for LLM judge
+Given an eval file with an `llm_judge` evaluator specifying a `prompt` file
+When the evaluation runs
+Then the LLM judge uses the content of that prompt file instead of the default system prompt.
+
+#### Scenario: Legacy fallback
+Given an eval file with NO `evaluators` list but a `grader: llm_judge` field
+When the evaluation runs
+Then the system uses the default `QualityGrader` with the hardcoded prompt (preserving existing behavior).
 
