@@ -1,12 +1,7 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import {
-  dispatchAgentSession,
-  dispatchBatchAgent,
-  getSubagentRoot,
-  provisionSubagents,
-} from "subagent";
+import { dispatchAgentSession, dispatchBatchAgent, getSubagentRoot, provisionSubagents } from "subagent";
 
 import { isGuidelineFile } from "../yaml-parser.js";
 import type { VSCodeResolvedConfig } from "./targets.js";
@@ -348,4 +343,5 @@ export async function ensureVSCodeSubagents(
       message: `Provisioning failed: ${errorMessage}`,
     };
   }
+
 }

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { HeuristicGrader, QualityGrader } from "../../src/evaluation/grading.js";
+import { QualityGrader } from "../../src/evaluation/grading.js";
 import type { ResolvedTarget } from "../../src/evaluation/providers/targets.js";
-import type { Provider, ProviderResponse } from "../../src/evaluation/providers/types.js";
-import type { EvalCase } from "../../src/evaluation/types.js";
+import type { Provider, ProviderRequest, ProviderResponse } from "../../src/evaluation/providers/types.js";
+import type { EvalCase, JsonObject } from "../../src/evaluation/types.js";
 
 class StubProvider implements Provider {
   readonly id = "stub";
@@ -23,9 +23,10 @@ const baseTestCase: EvalCase = {
   user_segments: [{ type: "text", value: "Please add logging" }],
   expected_assistant_raw: "- add structured logging\n- avoid global state",
   guideline_paths: [],
+  file_paths: [],
   code_snippets: [],
   outcome: "Logging improvements applied",
-  grader: "heuristic",
+  grader: "llm_judge",
 };
 
 const baseTarget: ResolvedTarget = {
@@ -33,24 +34,6 @@ const baseTarget: ResolvedTarget = {
   name: "mock",
   config: { response: "{}" },
 };
-
-describe("HeuristicGrader", () => {
-  it("scores candidate using extracted aspects", () => {
-    const grader = new HeuristicGrader();
-    const score = grader.grade({
-      evalCase: baseTestCase,
-      candidate: "Please add structured logging and avoid global state",
-      target: baseTarget,
-      provider: new StubProvider({ text: "" }),
-      attempt: 0,
-      promptInputs: { request: "", guidelines: "" },
-      now: new Date(),
-    });
-
-    expect(score.score).toBeGreaterThan(0.5);
-    expect(score.hits).toContain("add structured logging");
-  });
-});
 
 describe("QualityGrader", () => {
   it("parses JSON response and returns grade", async () => {
@@ -170,6 +153,51 @@ describe("QualityGrader", () => {
     expect(result.score).toBeCloseTo(0.9);
     expect(result.hits).toHaveLength(4); // Truncated to max 4
     expect(result.misses).toHaveLength(4); // Truncated to max 4
+  });
+
+  it("uses a custom system prompt when provided", async () => {
+    const customPrompt = "Custom grading system prompt";
+
+    class CapturingProvider implements Provider {
+      readonly id = "capturing";
+      readonly kind = "mock" as const;
+      readonly targetName = "capturing";
+      metadata?: JsonObject;
+
+      constructor(private readonly response: ProviderResponse) {}
+
+      async invoke(request: ProviderRequest): Promise<ProviderResponse> {
+        this.metadata = request.metadata;
+        return this.response;
+      }
+    }
+
+    const judgeProvider = new CapturingProvider({
+      text: JSON.stringify({
+        score: 0.7,
+        hits: ["Used custom prompt"],
+        misses: [],
+      }),
+    });
+
+    const grader = new QualityGrader({
+      resolveJudgeProvider: async () => judgeProvider,
+      customPrompt,
+    });
+
+    const result = await grader.grade({
+      evalCase: { ...baseTestCase, grader: "llm_judge" },
+      candidate: "Answer",
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { request: "", guidelines: "" },
+      now: new Date(),
+    });
+
+    expect(result.score).toBeCloseTo(0.7);
+    expect(judgeProvider.metadata?.systemPrompt).toBe(customPrompt);
+    expect(result.graderRawRequest?.systemPrompt).toBe(customPrompt);
   });
 
   it("rejects JSON with invalid hits/misses types", async () => {

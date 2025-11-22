@@ -133,10 +133,10 @@ export function isTestMessage(value: unknown): value is TestMessage {
   return candidate.content.every(isJsonObject);
 }
 
-const GRADER_KIND_VALUES = ["heuristic", "llm_judge"] as const;
+const GRADER_KIND_VALUES = ["llm_judge"] as const;
 
 /**
- * Supported grader implementations.
+ * Supported legacy grader implementations (used when evaluators are absent).
  */
 export const GRADER_KINDS = GRADER_KIND_VALUES;
 
@@ -154,6 +154,33 @@ export function isGraderKind(value: unknown): value is GraderKind {
   return typeof value === "string" && GRADER_KIND_SET.has(value);
 }
 
+const EVALUATOR_KIND_VALUES = ["code", "llm_judge"] as const;
+
+export type EvaluatorKind = (typeof EVALUATOR_KIND_VALUES)[number];
+
+const EVALUATOR_KIND_SET: ReadonlySet<string> = new Set(EVALUATOR_KIND_VALUES);
+
+export function isEvaluatorKind(value: unknown): value is EvaluatorKind {
+  return typeof value === "string" && EVALUATOR_KIND_SET.has(value);
+}
+
+export type CodeEvaluatorConfig = {
+  readonly name: string;
+  readonly type: "code";
+  readonly script: string;
+  readonly resolvedScriptPath?: string;
+};
+
+export type LlmJudgeEvaluatorConfig = {
+  readonly name: string;
+  readonly type: "llm_judge";
+  readonly prompt?: string;
+  readonly promptPath?: string;
+  readonly model?: string;
+};
+
+export type EvaluatorConfig = CodeEvaluatorConfig | LlmJudgeEvaluatorConfig;
+
 /**
  * Test case definition sourced from AgentV specs.
  */
@@ -169,7 +196,8 @@ export interface EvalCase {
   readonly file_paths: readonly string[];
   readonly code_snippets: readonly string[];
   readonly outcome: string;
-  readonly grader: GraderKind;
+  readonly grader?: GraderKind;
+  readonly evaluators?: readonly EvaluatorConfig[];
 }
 
 /**
@@ -187,6 +215,18 @@ export interface EvaluationResult {
   readonly timestamp: string;
   readonly reasoning?: string;
   readonly raw_aspects?: readonly string[];
+  readonly raw_request?: JsonObject;
+  readonly grader_raw_request?: JsonObject;
+  readonly evaluator_results?: readonly EvaluatorResult[];
+}
+
+export interface EvaluatorResult {
+  readonly name: string;
+  readonly type: EvaluatorKind;
+  readonly score: number;
+  readonly hits: readonly string[];
+  readonly misses: readonly string[];
+  readonly reasoning?: string;
   readonly raw_request?: JsonObject;
   readonly grader_raw_request?: JsonObject;
 }

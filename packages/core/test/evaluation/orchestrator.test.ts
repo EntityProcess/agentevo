@@ -1,12 +1,12 @@
-import { mkdtempSync, readFileSync, readdirSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { HeuristicGrader } from "../../src/evaluation/grading.js";
+import { QualityGrader } from "../../src/evaluation/grading.js";
 import { runEvalCase, type EvaluationCache } from "../../src/evaluation/orchestrator.js";
 import type { ResolvedTarget } from "../../src/evaluation/providers/targets.js";
-import type { Provider, ProviderResponse } from "../../src/evaluation/providers/types.js";
+import type { Provider, ProviderRequest, ProviderResponse } from "../../src/evaluation/providers/types.js";
 import type { EvalCase } from "../../src/evaluation/types.js";
 
 class SequenceProvider implements Provider {
@@ -40,15 +40,33 @@ class SequenceProvider implements Provider {
   }
 }
 
+class CapturingJudgeProvider implements Provider {
+  readonly id: string;
+  readonly kind = "mock" as const;
+  readonly targetName: string;
+  lastRequest?: ProviderRequest;
+
+  constructor(targetName: string, private readonly response: ProviderResponse) {
+    this.id = `judge:${targetName}`;
+    this.targetName = targetName;
+  }
+
+  async invoke(request: ProviderRequest): Promise<ProviderResponse> {
+    this.lastRequest = request;
+    return this.response;
+  }
+}
+
 const baseTestCase: EvalCase = {
   id: "case-1",
   task: "Explain logging improvements",
   user_segments: [{ type: "text", value: "Explain logging improvements" }],
   expected_assistant_raw: "- add structured logging\n- avoid global state",
   guideline_paths: [],
+  file_paths: [],
   code_snippets: [],
   outcome: "Logging improved",
-  grader: "heuristic",
+  grader: "llm_judge",
 };
 
 const baseTarget: ResolvedTarget = {
@@ -58,7 +76,17 @@ const baseTarget: ResolvedTarget = {
 };
 
 const graderRegistry = {
-  heuristic: new HeuristicGrader(),
+  llm_judge: {
+    kind: "llm_judge",
+    async grade() {
+      return {
+        score: 0.8,
+        hits: ["hit"],
+        misses: [],
+        expectedAspectCount: 1,
+      };
+    },
+  },
 };
 
 describe("runTestCase", () => {
@@ -66,7 +94,7 @@ describe("runTestCase", () => {
     vi.useRealTimers();
   });
 
-  it("produces evaluation result using heuristic grader", async () => {
+  it("produces evaluation result using default grader", async () => {
     const provider = new SequenceProvider("mock", {
       responses: [{ text: "You should add structured logging and avoid global state." }],
     });
@@ -79,8 +107,8 @@ describe("runTestCase", () => {
       now: () => new Date("2024-01-01T00:00:00Z"),
     });
 
-    expect(result.score).toBeGreaterThan(0.5);
-    expect(result.hits).toHaveLength(2);
+    expect(result.score).toBeGreaterThan(0);
+    expect(result.hits).toHaveLength(1);
     expect(result.misses).toHaveLength(0);
     expect(result.timestamp).toBe("2024-01-01T00:00:00.000Z");
   });
@@ -180,5 +208,44 @@ describe("runTestCase", () => {
     };
     expect(payload.request).toContain("Explain logging improvements");
     expect(Array.isArray(payload.guideline_paths)).toBe(true);
+  });
+
+  it("uses a custom evaluator prompt when provided", async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), "agentv-custom-judge-"));
+    const promptPath = path.join(directory, "judge.md");
+    writeFileSync(promptPath, "CUSTOM PROMPT CONTENT", "utf8");
+
+    const provider = new SequenceProvider("mock", {
+      responses: [{ text: "Answer text" }],
+    });
+
+    const judgeProvider = new CapturingJudgeProvider("judge", {
+      text: JSON.stringify({
+        score: 0.9,
+        hits: ["used prompt"],
+        misses: [],
+      }),
+      reasoning: "ok",
+    });
+
+    const graderRegistry = {
+      llm_judge: new QualityGrader({
+        resolveJudgeProvider: async () => judgeProvider,
+      }),
+    };
+
+    const result = await runEvalCase({
+      evalCase: {
+        ...baseTestCase,
+        evaluators: [{ name: "semantic", type: "llm_judge", promptPath }],
+      },
+      provider,
+      target: baseTarget,
+      graders: graderRegistry,
+      now: () => new Date("2024-01-01T00:00:00Z"),
+    });
+
+    expect(judgeProvider.lastRequest?.metadata?.systemPrompt).toContain("CUSTOM PROMPT CONTENT");
+    expect(result.evaluator_results?.[0]?.grader_raw_request?.systemPrompt).toContain("CUSTOM PROMPT CONTENT");
   });
 });

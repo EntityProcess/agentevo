@@ -1,14 +1,10 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import pLimit from "p-limit";
+import { spawn } from "node:child_process";
 
-import {
-  HeuristicGrader,
-  QualityGrader,
-  type GradeResult,
-  type Grader,
-} from "./grading.js";
+import { QualityGrader, type GradeResult, type Grader } from "./grading.js";
 import { createProvider } from "./providers/index.js";
 import { resolveTargetDefinition, type ResolvedTarget } from "./providers/targets.js";
 import type {
@@ -18,7 +14,7 @@ import type {
   ProviderResponse,
   TargetDefinition,
 } from "./providers/types.js";
-import type { EvaluationResult, JsonObject, EvalCase } from "./types.js";
+import type { EvalCase, EvaluationResult, EvaluatorConfig, EvaluatorResult, JsonObject } from "./types.js";
 import { buildPromptInputs, loadEvalCases } from "./yaml-parser.js";
 
 type MaybePromise<T> = T | Promise<T>;
@@ -32,7 +28,7 @@ export interface RunEvalCaseOptions {
   readonly evalCase: EvalCase;
   readonly provider: Provider;
   readonly target: ResolvedTarget;
-  readonly graders: Partial<Record<string, Grader>>;
+  readonly graders: Partial<Record<string, Grader>> & { readonly llm_judge: Grader };
   readonly now?: () => Date;
   readonly maxRetries?: number;
   readonly agentTimeoutMs?: number;
@@ -187,6 +183,7 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
         onResult,
         verbose,
         resolveJudgeProvider,
+        agentTimeoutMs,
       });
     } catch (error) {
       if (verbose) {
@@ -299,13 +296,14 @@ async function runBatchEvaluation(options: {
   readonly evalCases: readonly EvalCase[];
   readonly provider: Provider;
   readonly target: ResolvedTarget;
-  readonly graderRegistry: Partial<Record<string, Grader>> & { readonly heuristic: Grader };
+  readonly graderRegistry: Partial<Record<string, Grader>> & { readonly llm_judge: Grader };
   readonly promptDumpDir?: string;
   readonly nowFn: () => Date;
   readonly onProgress?: (event: ProgressEvent) => MaybePromise<void>;
   readonly onResult?: (result: EvaluationResult) => MaybePromise<void>;
   readonly verbose?: boolean;
   readonly resolveJudgeProvider: (target: ResolvedTarget) => Promise<Provider | undefined>;
+  readonly agentTimeoutMs?: number;
 }): Promise<readonly EvaluationResult[]> {
   const {
     evalCases,
@@ -317,6 +315,7 @@ async function runBatchEvaluation(options: {
     onProgress,
     onResult,
     resolveJudgeProvider,
+    agentTimeoutMs,
   } = options;
 
   // Prepare prompt inputs up front so we can reuse them for grading.
@@ -371,25 +370,19 @@ async function runBatchEvaluation(options: {
     const evalCase = evalCases[i];
     const promptInputs = promptInputsList[i];
     const providerResponse = batchResponse[i];
-    const now = nowFn();
-
-    const graderKind = evalCase.grader ?? "heuristic";
-    const activeGrader = graderRegistry[graderKind] ?? graderRegistry.heuristic;
-    if (!activeGrader) {
-      throw new Error(`No grader registered for kind '${graderKind}'`);
-    }
-
-    let grade: GradeResult;
+    let result: EvaluationResult;
     try {
-      grade = await activeGrader.grade({
+      result = await evaluateCandidate({
         evalCase,
         candidate: providerResponse.text ?? "",
         target,
         provider,
-        attempt: 0,
+        graders: graderRegistry,
         promptInputs,
-        now,
+        nowFn,
+        attempt: 0,
         judgeProvider: await resolveJudgeProvider(target),
+        agentTimeoutMs,
       });
     } catch (error) {
       const errorResult = buildErrorResult(evalCase, target.name, nowFn(), error, promptInputs);
@@ -408,30 +401,6 @@ async function runBatchEvaluation(options: {
       }
       continue;
     }
-
-    const completedAt = nowFn();
-    const rawRequest: JsonObject = {
-      request: promptInputs.request,
-      guidelines: promptInputs.guidelines,
-      guideline_paths: evalCase.guideline_paths,
-      system_message: promptInputs.systemMessage ?? "",
-    } as JsonObject;
-
-    const result: EvaluationResult = {
-      eval_id: evalCase.id,
-      conversation_id: evalCase.conversation_id,
-      score: grade.score,
-      hits: grade.hits,
-      misses: grade.misses,
-      model_answer: providerResponse.text ?? "",
-      expected_aspect_count: grade.expectedAspectCount,
-      target: target.name,
-      timestamp: completedAt.toISOString(),
-      reasoning: grade.reasoning,
-      raw_aspects: grade.rawAspects,
-      raw_request: rawRequest,
-      grader_raw_request: grade.graderRawRequest,
-    };
 
     results.push(result);
     if (onResult) {
@@ -520,28 +489,62 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     await cache.set(cacheKey, providerResponse);
   }
 
-  const graderKind = evalCase.grader ?? "heuristic";
-  const activeGrader = graders[graderKind] ?? graders.heuristic;
-  if (!activeGrader) {
-    throw new Error(`No grader registered for kind '${graderKind}'`);
-  }
-
-  let grade: GradeResult;
   try {
-    const gradeTimestamp = nowFn();
-    grade = await activeGrader.grade({
-      evalCase: evalCase,
+    return await evaluateCandidate({
+      evalCase,
       candidate: providerResponse.text ?? "",
       target,
       provider,
-      attempt,
+      graders,
       promptInputs,
-      now: gradeTimestamp,
+      nowFn,
+      attempt,
       judgeProvider,
+      agentTimeoutMs,
     });
   } catch (error) {
     return buildErrorResult(evalCase, target.name, nowFn(), error, promptInputs);
   }
+}
+
+async function evaluateCandidate(options: {
+  readonly evalCase: EvalCase;
+  readonly candidate: string;
+  readonly target: ResolvedTarget;
+  readonly provider: Provider;
+  readonly graders: Partial<Record<string, Grader>> & { readonly llm_judge: Grader };
+  readonly promptInputs: { readonly request: string; readonly guidelines: string; readonly systemMessage?: string };
+  readonly nowFn: () => Date;
+  readonly attempt: number;
+  readonly judgeProvider?: Provider;
+  readonly agentTimeoutMs?: number;
+}): Promise<EvaluationResult> {
+  const {
+    evalCase,
+    candidate,
+    target,
+    provider,
+    graders,
+    promptInputs,
+    nowFn,
+    attempt,
+    judgeProvider,
+    agentTimeoutMs,
+  } = options;
+
+  const gradeTimestamp = nowFn();
+  const { grade, evaluatorResults } = await runGradersForCase({
+    evalCase,
+    candidate,
+    target,
+    provider,
+    graders,
+    attempt,
+    promptInputs,
+    now: gradeTimestamp,
+    judgeProvider,
+    agentTimeoutMs,
+  });
 
   const completedAt = nowFn();
   const rawRequest: JsonObject = {
@@ -557,15 +560,358 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     score: grade.score,
     hits: grade.hits,
     misses: grade.misses,
-    model_answer: providerResponse.text ?? "",
+    model_answer: candidate,
     expected_aspect_count: grade.expectedAspectCount,
     target: target.name,
     timestamp: completedAt.toISOString(),
     reasoning: grade.reasoning,
     raw_aspects: grade.rawAspects,
     raw_request: rawRequest,
-    grader_raw_request: grade.graderRawRequest,
-  } satisfies EvaluationResult;
+    grader_raw_request: evaluatorResults ? undefined : grade.graderRawRequest,
+    evaluator_results: evaluatorResults,
+  };
+}
+
+async function runGradersForCase(options: {
+  readonly evalCase: EvalCase;
+  readonly candidate: string;
+  readonly target: ResolvedTarget;
+  readonly provider: Provider;
+  readonly graders: Partial<Record<string, Grader>> & { readonly llm_judge: Grader };
+  readonly attempt: number;
+  readonly promptInputs: { readonly request: string; readonly guidelines: string; readonly systemMessage?: string };
+  readonly now: Date;
+  readonly judgeProvider?: Provider;
+  readonly agentTimeoutMs?: number;
+}): Promise<{ grade: GradeResult; evaluatorResults?: EvaluatorResult[] }> {
+  const { evalCase, candidate, target, provider, graders, attempt, promptInputs, now, judgeProvider, agentTimeoutMs } =
+    options;
+
+  if (evalCase.evaluators && evalCase.evaluators.length > 0) {
+    return runEvaluatorList({
+      evalCase,
+      evaluators: evalCase.evaluators,
+      candidate,
+      target,
+      provider,
+      graders,
+      attempt,
+      promptInputs,
+      now,
+      judgeProvider,
+      agentTimeoutMs,
+    });
+  }
+
+  const graderKind = evalCase.grader ?? "llm_judge";
+  const activeGrader = graders[graderKind] ?? graders.llm_judge;
+  if (!activeGrader) {
+    throw new Error(`No grader registered for kind '${graderKind}'`);
+  }
+
+  const grade = await activeGrader.grade({
+    evalCase,
+    candidate,
+    target,
+    provider,
+    attempt,
+    promptInputs,
+    now,
+    judgeProvider,
+  });
+
+  return { grade };
+}
+
+async function runEvaluatorList(options: {
+  readonly evalCase: EvalCase;
+  readonly evaluators: readonly EvaluatorConfig[];
+  readonly candidate: string;
+  readonly target: ResolvedTarget;
+  readonly provider: Provider;
+  readonly graders: Partial<Record<string, Grader>> & { readonly llm_judge: Grader };
+  readonly attempt: number;
+  readonly promptInputs: { readonly request: string; readonly guidelines: string; readonly systemMessage?: string };
+  readonly now: Date;
+  readonly judgeProvider?: Provider;
+  readonly agentTimeoutMs?: number;
+}): Promise<{ grade: GradeResult; evaluatorResults: EvaluatorResult[] }> {
+  const {
+    evalCase,
+    evaluators,
+    candidate,
+    target,
+    provider,
+    graders,
+    attempt,
+    promptInputs,
+    now,
+    judgeProvider,
+    agentTimeoutMs,
+  } = options;
+
+  const graded: Array<{ readonly grade: GradeResult; readonly name: string; readonly type: string }> = [];
+  const evaluatorResults: EvaluatorResult[] = [];
+
+  for (const evaluator of evaluators ?? []) {
+    try {
+      if (evaluator.type === "llm_judge") {
+        const grade = await runLlmJudgeEvaluator({
+          config: evaluator,
+          evalCase,
+          candidate,
+          target,
+          provider,
+          graders,
+          attempt,
+          promptInputs,
+          now,
+          judgeProvider,
+        });
+        graded.push({ grade, name: evaluator.name, type: evaluator.type });
+        evaluatorResults.push({
+          name: evaluator.name,
+          type: evaluator.type,
+          score: grade.score,
+          hits: grade.hits,
+          misses: grade.misses,
+          reasoning: grade.reasoning,
+          grader_raw_request: grade.graderRawRequest,
+        });
+        continue;
+      }
+
+      if (evaluator.type === "code") {
+        const grade = await runCodeEvaluator({
+          config: evaluator,
+          evalCase,
+          candidate,
+          promptInputs,
+          agentTimeoutMs,
+        });
+        graded.push({ grade, name: evaluator.name, type: evaluator.type });
+        evaluatorResults.push({
+          name: evaluator.name,
+          type: evaluator.type,
+          score: grade.score,
+          hits: grade.hits,
+          misses: grade.misses,
+          reasoning: grade.reasoning,
+          grader_raw_request: grade.graderRawRequest,
+        });
+        continue;
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const fallbackGrade: GradeResult = {
+        score: 0,
+        hits: [],
+        misses: [`Evaluator '${evaluator.name}' failed: ${message}`],
+        expectedAspectCount: 1,
+        reasoning: message,
+      };
+      graded.push({ grade: fallbackGrade, name: evaluator.name ?? "unknown", type: evaluator.type ?? "unknown" });
+      evaluatorResults.push({
+        name: evaluator.name ?? "unknown",
+        type: evaluator.type ?? "unknown",
+        score: 0,
+        hits: [],
+        misses: [`Evaluator '${evaluator.name ?? "unknown"}' failed: ${message}`],
+        reasoning: message,
+      });
+    }
+  }
+
+  const aggregateScore =
+    graded.length > 0 ? graded.reduce((total, entry) => total + entry.grade.score, 0) / graded.length : 0;
+  const hits = graded.flatMap((entry) => entry.grade.hits);
+  const misses = graded.flatMap((entry) => entry.grade.misses);
+  const expectedAspectCount = graded.reduce((total, entry) => total + (entry.grade.expectedAspectCount ?? 0), 0);
+  const rawAspects = graded.flatMap((entry) => entry.grade.rawAspects ?? []);
+  const reasoningParts = graded
+    .map((entry) => (entry.grade.reasoning ? `${entry.name}: ${entry.grade.reasoning}` : undefined))
+    .filter(isNonEmptyString);
+  const reasoning = reasoningParts.length > 0 ? reasoningParts.join(" | ") : undefined;
+
+  const grade: GradeResult = {
+    score: aggregateScore,
+    hits,
+    misses,
+    expectedAspectCount,
+    reasoning,
+    rawAspects: rawAspects.length > 0 ? rawAspects : undefined,
+  };
+
+  return { grade, evaluatorResults };
+}
+
+async function runLlmJudgeEvaluator(options: {
+  readonly config: Exclude<NonNullable<EvalCase["evaluators"]>[number], { type: "code" }>;
+  readonly evalCase: EvalCase;
+  readonly candidate: string;
+  readonly target: ResolvedTarget;
+  readonly provider: Provider;
+  readonly graders: Partial<Record<string, Grader>> & { readonly llm_judge: Grader };
+  readonly attempt: number;
+  readonly promptInputs: { readonly request: string; readonly guidelines: string; readonly systemMessage?: string };
+  readonly now: Date;
+  readonly judgeProvider?: Provider;
+}): Promise<GradeResult> {
+  const { config, evalCase, candidate, target, provider, graders, attempt, promptInputs, now, judgeProvider } =
+    options;
+  const customPrompt = await resolveCustomPrompt(config);
+
+  return graders.llm_judge.grade({
+    evalCase,
+    candidate,
+    target,
+    provider,
+    attempt,
+    promptInputs,
+    now,
+    judgeProvider,
+    systemPrompt: customPrompt,
+    evaluator: config,
+    judgeModel: config.model,
+  });
+}
+
+async function runCodeEvaluator(options: {
+  readonly config: Extract<NonNullable<EvalCase["evaluators"]>[number], { type: "code" }>;
+  readonly evalCase: EvalCase;
+  readonly candidate: string;
+  readonly promptInputs: { readonly request: string; readonly guidelines: string; readonly systemMessage?: string };
+  readonly agentTimeoutMs?: number;
+}): Promise<GradeResult> {
+  const { config, evalCase, candidate, promptInputs, agentTimeoutMs } = options;
+  const scriptPath = config.resolvedScriptPath ?? config.script;
+
+  const inputPayload = JSON.stringify(
+    {
+      task: evalCase.task,
+      outcome: evalCase.outcome,
+      expected: evalCase.expected_assistant_raw,
+      output: candidate,
+      system_message: promptInputs.systemMessage ?? "",
+      guideline_paths: evalCase.guideline_paths,
+      attachments: evalCase.file_paths,
+      user_segments: evalCase.user_segments,
+    },
+    null,
+    2,
+  );
+
+  try {
+    const stdout = await executeScript(scriptPath, inputPayload, agentTimeoutMs);
+    const parsed = parseJsonSafe(stdout);
+    const score = clampScore(typeof parsed?.score === "number" ? parsed.score : 0);
+    const hits = Array.isArray(parsed?.hits) ? parsed.hits.filter(isNonEmptyString) : [];
+    const misses = Array.isArray(parsed?.misses) ? parsed.misses.filter(isNonEmptyString) : [];
+    const reasoning = typeof parsed?.reasoning === "string" ? parsed.reasoning : undefined;
+
+    return {
+      score,
+      hits,
+      misses,
+      expectedAspectCount: hits.length + misses.length || 1,
+      reasoning,
+      graderRawRequest: {
+        script: scriptPath,
+      },
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      score: 0,
+      hits: [],
+      misses: [`Code evaluator '${config.name}' failed: ${message}`],
+      expectedAspectCount: 1,
+      reasoning: message,
+      graderRawRequest: {
+        script: scriptPath,
+        error: message,
+      },
+    };
+  }
+}
+
+async function resolveCustomPrompt(config: { readonly prompt?: string; readonly promptPath?: string }): Promise<string | undefined> {
+  if (config.promptPath) {
+    try {
+      return await readFile(config.promptPath, "utf8");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`Could not read custom prompt at ${config.promptPath}: ${message}`);
+    }
+  }
+  return config.prompt;
+}
+
+async function executeScript(scriptPath: string, input: string, agentTimeoutMs?: number): Promise<string> {
+  return await new Promise<string>((resolve, reject) => {
+    const child = spawn(scriptPath, { shell: true });
+
+    let stdout = "";
+    let stderr = "";
+
+    const timeout = agentTimeoutMs
+      ? setTimeout(() => {
+          child.kill();
+          reject(new Error(`Code evaluator timed out after ${agentTimeoutMs}ms`));
+        }, agentTimeoutMs)
+      : undefined;
+
+    child.stdout?.on("data", (data) => {
+      stdout += data.toString();
+    });
+    child.stderr?.on("data", (data) => {
+      stderr += data.toString();
+    });
+    child.on("error", (error) => {
+      if (timeout !== undefined) {
+        clearTimeout(timeout);
+      }
+      reject(error);
+    });
+    child.on("exit", (code) => {
+      if (timeout !== undefined) {
+        clearTimeout(timeout);
+      }
+      if (code && code !== 0 && stderr.length > 0) {
+        reject(new Error(`Code evaluator exited with code ${code}: ${stderr.trim()}`));
+        return;
+      }
+      resolve(stdout.trim());
+    });
+
+    child.stdin?.write(input);
+    child.stdin?.end();
+  });
+}
+
+function parseJsonSafe(payload: string): Record<string, unknown> | undefined {
+  try {
+    return JSON.parse(payload) as Record<string, unknown>;
+  } catch {
+    return undefined;
+  }
+}
+
+function clampScore(value: number): number {
+  if (Number.isNaN(value) || !Number.isFinite(value)) {
+    return 0;
+  }
+  if (value < 0) {
+    return 0;
+  }
+  if (value > 1) {
+    return 1;
+  }
+  return value;
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
 }
 
 function filterEvalCases(evalCases: readonly EvalCase[], evalId?: string): readonly EvalCase[] {
@@ -578,8 +924,7 @@ function filterEvalCases(evalCases: readonly EvalCase[], evalId?: string): reado
 function buildGraderRegistry(
   overrides: Partial<Record<string, Grader>> | undefined,
   resolveJudgeProvider: (target: ResolvedTarget) => Promise<Provider | undefined>,
-): Partial<Record<string, Grader>> & { readonly heuristic: Grader } {
-  const heuristic = overrides?.heuristic ?? new HeuristicGrader();
+): Partial<Record<string, Grader>> & { readonly llm_judge: Grader } {
   const llmJudge =
     overrides?.llm_judge ??
     new QualityGrader({
@@ -593,7 +938,6 @@ function buildGraderRegistry(
 
   return {
     ...overrides,
-    heuristic,
     llm_judge: llmJudge,
   };
 }

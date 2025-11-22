@@ -34,7 +34,7 @@ class StubBatchProvider implements Provider {
 }
 
 const stubGrader: Grader = {
-  kind: "heuristic",
+  kind: "llm_judge",
   async grade(context) {
     return {
       score: 1,
@@ -51,23 +51,23 @@ const evalCases: EvalCase[] = [
     task: "t1",
     user_segments: [],
     expected_assistant_raw: "",
-    guideline_paths: [],
-    file_paths: [],
-    code_snippets: [],
-    outcome: "",
-    grader: "heuristic",
-  },
-  {
-    id: "two",
+  guideline_paths: [],
+  file_paths: [],
+  code_snippets: [],
+  outcome: "",
+  grader: "llm_judge",
+},
+{
+  id: "two",
     task: "t2",
     user_segments: [],
     expected_assistant_raw: "",
-    guideline_paths: [],
-    file_paths: [],
-    code_snippets: [],
-    outcome: "",
-    grader: "heuristic",
-  },
+  guideline_paths: [],
+  file_paths: [],
+  code_snippets: [],
+  outcome: "",
+  grader: "llm_judge",
+},
 ];
 
 const target: ResolvedTarget = {
@@ -102,7 +102,7 @@ describe("runEvaluation provider batching", () => {
       repoRoot: ".",
       target,
       env: {},
-      graders: { heuristic: stubGrader },
+      graders: { llm_judge: stubGrader },
       providerFactory: () => provider,
       maxRetries: 0,
     });
@@ -121,7 +121,7 @@ describe("runEvaluation provider batching", () => {
       repoRoot: ".",
       target,
       env: {},
-      graders: { heuristic: stubGrader },
+      graders: { llm_judge: stubGrader },
       providerFactory: () => provider,
       maxRetries: 0,
     });

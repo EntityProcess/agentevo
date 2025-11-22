@@ -2,8 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import type { ResolvedTarget } from "./providers/targets.js";
 import type { Provider, ProviderResponse } from "./providers/types.js";
-import { extractAspects, isErrorLike, scoreCandidateResponse } from "./scoring.js";
-import type { JsonObject, EvalCase } from "./types.js";
+import type { EvaluatorConfig, JsonObject, EvalCase } from "./types.js";
 
 export interface GradeContext {
   readonly evalCase: EvalCase;
@@ -17,6 +16,9 @@ export interface GradeContext {
   };
   readonly now: Date;
   readonly judgeProvider?: Provider;
+  readonly systemPrompt?: string;
+  readonly evaluator?: EvaluatorConfig;
+  readonly judgeModel?: string;
 }
 
 export interface GradeResult {
@@ -34,37 +36,13 @@ export interface Grader {
   grade(context: GradeContext): Promise<GradeResult> | GradeResult;
 }
 
-export class HeuristicGrader implements Grader {
-  readonly kind = "heuristic";
-
-  grade(context: GradeContext): GradeResult {
-    const expectedAspects = extractAspects(context.evalCase.expected_assistant_raw);
-    const result = scoreCandidateResponse(context.candidate, expectedAspects);
-
-    const misses = [...result.misses];
-    if (expectedAspects.length === 0 && isErrorLike(context.candidate)) {
-      const firstLine = context.candidate.split(/\r?\n/)[0]?.trim();
-      if (firstLine && !misses.includes(firstLine)) {
-        misses.unshift(firstLine);
-      }
-    }
-
-    return {
-      score: result.score,
-      hits: result.hits,
-      misses,
-      expectedAspectCount: result.totalAspects,
-      rawAspects: result.rawAspects,
-    };
-  }
-}
-
 type JudgeProviderResolver = (context: GradeContext) => Promise<Provider | undefined>;
 
 export interface QualityGraderOptions {
   readonly resolveJudgeProvider: JudgeProviderResolver;
   readonly maxOutputTokens?: number;
   readonly temperature?: number;
+  readonly customPrompt?: string;
 }
 
 export class QualityGrader implements Grader {
@@ -73,11 +51,13 @@ export class QualityGrader implements Grader {
   private readonly resolveJudgeProvider: JudgeProviderResolver;
   private readonly maxOutputTokens?: number;
   private readonly temperature?: number;
+  private readonly customPrompt?: string;
 
   constructor(options: QualityGraderOptions) {
     this.resolveJudgeProvider = options.resolveJudgeProvider;
     this.maxOutputTokens = options.maxOutputTokens;
     this.temperature = options.temperature;
+    this.customPrompt = options.customPrompt;
   }
 
   async grade(context: GradeContext): Promise<GradeResult> {
@@ -87,8 +67,10 @@ export class QualityGrader implements Grader {
     }
 
     const prompt = buildQualityPrompt(context.evalCase, context.candidate);
+    const systemPrompt = context.systemPrompt ?? this.customPrompt ?? QUALITY_SYSTEM_PROMPT;
     const metadata: JsonObject = {
-      systemPrompt: QUALITY_SYSTEM_PROMPT,
+      ...(systemPrompt !== undefined ? { systemPrompt } : {}),
+      ...(context.judgeModel !== undefined ? { model: context.judgeModel } : {}),
     };
 
     const response = await judgeProvider.invoke({
@@ -115,8 +97,9 @@ export class QualityGrader implements Grader {
       id: randomUUID(),
       provider: judgeProvider.id,
       prompt,
-      systemPrompt: QUALITY_SYSTEM_PROMPT,
       target: context.target.name,
+      ...(systemPrompt !== undefined ? { systemPrompt } : {}),
+      ...(context.judgeModel !== undefined ? { model: context.judgeModel } : {}),
     };
 
     return {
