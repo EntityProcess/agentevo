@@ -1,7 +1,8 @@
 # Spec: Evaluation Capability
 
 ## Purpose
-Provides comprehensive AI agent evaluation capabilities including test case execution, multi-provider LLM integration, heuristic and LLM-based grading, configurable output formats, and statistical analysis of evaluation results.
+Provides comprehensive AI agent evaluation capabilities including test case execution, multi-provider LLM integration, custom evaluator framework for scoring, configurable output formats, and statistical analysis of evaluation results.
+
 ## Requirements
 ### Requirement: Test Case Execution
 
@@ -29,41 +30,30 @@ The system SHALL execute evaluation test cases with configurable providers, retr
 - **AND** continues with the next test case or batch
 - **AND** does not block other parallel workers
 
-### Requirement: LLM-Based Grading
+### Requirement: LLM Judge Evaluator JSON Contract
 
-The system SHALL provide optional LLM-based quality grading using structured outputs.
-
-#### Scenario: LLM grading with reasoning
-
-- **WHEN** LLM grading is enabled for a test case
-- **THEN** the system invokes the LLM grader with the test context
-- **AND** extracts a numeric score and reasoning from the response
-- **AND** includes both in the evaluation result
-
-#### Scenario: LLM grading failure fallback
-
-- **WHEN** LLM grading fails to parse a valid score
-- **THEN** the system logs a warning
-- **AND** returns a null LLM score with the raw response for debugging
-
-### Requirement: Quality Grader JSON Contract
-
-The system SHALL instruct judge models to emit a single JSON object and validate responses against that contract.
+The system SHALL instruct LLM judge evaluators to emit a single JSON object and validate responses against that contract.
 
 #### Scenario: Enforce JSON prompt contract
 
-- **WHEN** the quality grader builds the system prompt
+- **WHEN** an LLM judge evaluator builds the system prompt
 - **THEN** it enumerates the required input fields (`expected_outcome`, `request`, `reference_answer`, `generated_answer`)
 - **AND** specifies the JSON schema `{ "score": float, "hits": string[], "misses": string[], "reasoning": string }`
 - **AND** instructs the model to return only that JSON object with `score` constrained to `[0.0, 1.0]` and at most four entries in `hits` and `misses`
 
-#### Scenario: Parse JSON grader response
+#### Scenario: Parse JSON evaluator response
 
-- **WHEN** a judge provider returns a response for quality grading
+- **WHEN** a judge provider returns a response for an LLM judge evaluator
 - **THEN** the system parses the first JSON object from the response body
 - **AND** clamps the numeric score to the inclusive range `[0, 1]`
 - **AND** filters `hits` and `misses` to non-empty trimmed strings, defaulting to empty arrays when parsing fails
 - **AND** falls back to a score of `0` with empty feedback if no valid JSON object is present
+
+#### Scenario: LLM judge evaluation failure
+
+- **WHEN** an LLM judge evaluator fails to parse a valid score
+- **THEN** the system logs a warning
+- **AND** returns a score of 0 with the raw response for debugging
 
 ### Requirement: Provider Integration
 
@@ -536,21 +526,28 @@ The system SHALL validate CLI template targets so authors must specify the comma
 - **AND** rejects unsupported types or missing properties with specific errors
 
 ### Requirement: Custom Evaluators
-The system SHALL support defining multiple evaluators in the `evaluators` list, including custom LLM judges.
+
+The system SHALL support defining multiple evaluators in the `evaluators` array, including custom LLM judges and code-based evaluators, providing a modern alternative to the legacy `grader` field.
 
 #### Scenario: User defines multiple evaluators in YAML
-Given an eval file with an `evaluators` list containing a "code" check and an "llm_judge"
-When the evaluation runs
-Then both evaluators are executed
-And the final result reflects the scores from both.
 
-#### Scenario: User provides custom prompt for LLM judge
-Given an eval file with an `llm_judge` evaluator specifying a `prompt` file
-When the evaluation runs
-Then the LLM judge uses the content of that prompt file instead of the default system prompt.
+- **WHEN** an eval file includes an `evaluators` list containing multiple evaluator configurations
+- **AND** the list includes both "code" and "llm_judge" evaluator types
+- **THEN** the system executes all evaluators for each test case
+- **AND** aggregates the scores in the `evaluator_results` field of the evaluation result
+- **AND** the overall `score` reflects the combined evaluation
 
-#### Scenario: Legacy fallback
-Given an eval file with NO `evaluators` list but a `grader: llm_judge` field
-When the evaluation runs
-Then the system uses the default `QualityGrader` with the hardcoded prompt (preserving existing behavior).
+#### Scenario: User provides custom prompt for LLM judge evaluator
+
+- **WHEN** an eval file includes an `llm_judge` evaluator with a `prompt` or `promptPath` field
+- **THEN** the system loads the custom prompt content
+- **AND** uses it instead of the default `QUALITY_SYSTEM_PROMPT` when invoking the judge provider
+
+#### Scenario: Code evaluator execution
+
+- **WHEN** an eval file includes a `code` evaluator with a `script` path
+- **THEN** the system resolves the script path relative to the eval file
+- **AND** executes the script with the test case context
+- **AND** captures the script's JSON output containing score, hits, misses, and optional reasoning
+- **AND** includes the result in the `evaluator_results` array
 
