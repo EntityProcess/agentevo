@@ -86,7 +86,7 @@ agentv eval evals/example-eval.yaml --target azure_base
 
 ### CLI provider sample
 
-The bundled `.agentv/targets.yaml` includes a `local_cli` target that shells out to an existing CLI. Placeholders `{PROMPT}`, `{GUIDELINES}`, `{EVAL_ID}`, `{ATTEMPT}`, `{ATTACHMENTS}`, and `{FILES}` are shell-escaped automatically; adjust `attachments_format`/`files_format` (`{path}`/`{basename}`) and optional `healthcheck`/`timeout_seconds` to match your CLI's expectations.
+The bundled `.agentv/targets.yaml` includes a `local_cli` target that shells out to an existing CLI. Placeholders `{PROMPT}`, `{GUIDELINES}`, `{EVAL_ID}`, `{ATTEMPT}`, and `{FILES}` are shell-escaped automatically; adjust `files_format` (`{path}`/`{basename}`) and optional `healthcheck`/`timeout_seconds` to match your CLI's expectations.
 
 To try it locally:
 

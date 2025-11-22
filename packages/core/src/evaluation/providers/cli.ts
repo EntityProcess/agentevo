@@ -36,6 +36,7 @@ async function defaultCommandRunner(
     timeout: options.timeoutMs,
     signal: options.signal,
     maxBuffer: DEFAULT_MAX_BUFFER,
+    shell: process.platform === "win32" ? "powershell.exe" : undefined,
   };
 
   try {
@@ -215,7 +216,6 @@ function buildTemplateValues(
     GUIDELINES: shellEscape(request.guidelines ?? ""),
     EVAL_ID: shellEscape(request.evalCaseId ?? ""),
     ATTEMPT: shellEscape(String(request.attempt ?? 0)),
-    ATTACHMENTS: formatFileList(attachments, config.attachmentsFormat),
     FILES: formatFileList(attachments, config.filesFormat),
   };
 }

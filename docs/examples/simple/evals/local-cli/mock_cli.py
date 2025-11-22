@@ -44,14 +44,6 @@ def main() -> int:
             seen.add(path)
             files.append(path)
 
-    # Fallback to known demo files if none were parsed
-    if not files:
-        root = Path(__file__).resolve().parent
-        files = [
-            root / "prompts" / "python.instructions.md",
-            root / "evals" / "attachments" / "example.txt",
-        ]
-
     names = sorted(p.name for p in files)
     names_str = ", ".join(names) if names else "none"
 

@@ -261,8 +261,8 @@ Each target specifies:
 - name: local_cli
   provider: cli
   settings:
-    command_template: 'code chat {PROMPT} {ATTACHMENTS}'
-    attachments_format: '--file {path}'
+    command_template: 'code chat {PROMPT} {FILES}'
+    files_format: '--file {path}'
     cwd: PROJECT_ROOT               # optional working directory
     env:                            # merged into process.env
       API_TOKEN: LOCAL_AGENT_TOKEN
@@ -272,7 +272,7 @@ Each target specifies:
       command_template: code --version
 ```
 
-CLI placeholders are `{PROMPT}`, `{GUIDELINES}`, `{EVAL_ID}`, `{ATTEMPT}`, `{ATTACHMENTS}`, and `{FILES}`. Values are shell-escaped automatically; avoid wrapping them in extra quotes unless your CLI requires nested quoting. `{ATTACHMENTS}`/`{FILES}` render each path using `attachments_format`/`files_format` (supports `{path}` and `{basename}`) and join with spaces. Optional `healthcheck` probes (HTTP or command) run once before the first eval and abort the run on failure.
+CLI placeholders are `{PROMPT}`, `{GUIDELINES}`, `{EVAL_ID}`, `{ATTEMPT}`, and `{FILES}`. Values are shell-escaped automatically; avoid wrapping them in extra quotes unless your CLI requires nested quoting. `{FILES}` renders each file path using `files_format` (supports `{path}` and `{basename}`) and joins with spaces. Optional `healthcheck` probes (HTTP or command) run once before the first eval and abort the run on failure.
 CLI troubleshooting: unsupported placeholders fail validation, so stick to the tokens above; if your CLI logs show doubled quotes, drop extra quoting in `command_template` and rely on the built-in escaping; if healthchecks fail, raise `timeout_seconds` or point the probe at a fast status endpoint.
 
 ## Timeout Handling and Retries

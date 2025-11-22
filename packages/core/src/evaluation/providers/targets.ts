@@ -58,7 +58,6 @@ export type CliHealthcheck =
 
 export interface CliResolvedConfig {
   readonly commandTemplate: string;
-  readonly attachmentsFormat?: string;
   readonly filesFormat?: string;
   readonly cwd?: string;
   readonly env?: Record<string, string>;
@@ -342,9 +341,6 @@ function resolveCliConfig(
 ): CliResolvedConfig {
   const settings = target.settings ?? {};
   const commandTemplateSource = settings.command_template ?? settings.commandTemplate;
-  const attachmentsFormat = resolveOptionalLiteralString(
-    settings.attachments_format ?? settings.attachmentsFormat,
-  );
   const filesFormat = resolveOptionalLiteralString(settings.files_format ?? settings.filesFormat);
   const cwd = resolveOptionalString(settings.cwd, env, `${target.name} working directory`, {
     allowLiteral: true,
@@ -364,7 +360,6 @@ function resolveCliConfig(
 
   return {
     commandTemplate,
-    attachmentsFormat,
     filesFormat,
     cwd,
     env: envOverrides,

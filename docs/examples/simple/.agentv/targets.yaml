@@ -46,10 +46,10 @@ targets:
     judge_target: azure_base
     settings:
       # Passes the fully rendered prompt and any attached files to a local Python script
-      command_template: uv run ./mock_cli.py --prompt "{PROMPT}" -- {FILES}
-      # Attach files with a prefix. {path} and {basename} are both supported.
-      attachments_format: --file "{path}"
-      files_format: --file "{path}"
+      # NOTE: Do not add quotes around {PROMPT} or {FILES} - they are already shell-escaped
+      command_template: uv run ./mock_cli.py --prompt {PROMPT} {FILES}
+      # Format for each file in {FILES}. {path} and {basename} are automatically shell-escaped, so no quotes needed
+      files_format: --file {path}
       # Optional working directory and env overrides resolved from .env
       cwd: CLI_EVALS_DIR
       env:
