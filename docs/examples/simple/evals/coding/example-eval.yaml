@@ -43,7 +43,7 @@ evalcases:
           - type: file
             value: ../../prompts/javascript.instructions.md
           - type: file
-            value: ../cli-target/attachments/example.txt
+            value: ../local-cli/attachments/example.txt
     
     expected_messages:
       - role: assistant
