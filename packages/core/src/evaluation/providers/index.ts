@@ -15,9 +15,13 @@ export type {
   TargetDefinition,
 } from "./types.js";
 
+import { CodexProvider } from "./codex.js";
+import type { CodexResolvedConfig } from "./targets.js";
+
 export type {
   AnthropicResolvedConfig,
   AzureResolvedConfig,
+  CodexResolvedConfig,
   CliResolvedConfig,
   GeminiResolvedConfig,
   MockResolvedConfig,
@@ -39,6 +43,8 @@ export function createProvider(target: ResolvedTarget): Provider {
       return new GeminiProvider(target.name, target.config);
     case "cli":
       return new CliProvider(target.name, target.config);
+    case "codex":
+      return new CodexProvider(target.name, target.config);
     case "mock":
       return new MockProvider(target.name, target.config);
     case "vscode":

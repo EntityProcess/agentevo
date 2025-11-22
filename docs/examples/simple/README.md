@@ -98,6 +98,21 @@ To try it locally:
 agentv eval evals/cli-provider-demo.yaml --target local_cli
 ```
 
+### Codex CLI provider sample
+
+The sample `codex_cli` target demonstrates how to drive the standalone Codex CLI from AgentV.
+
+1. Install the `codex` CLI (follow the official `codex-cli` README) and run `codex configure` so `~/.codex/config` exists.
+2. Export either `OPENAI_API_KEY` or `CODEX_API_KEY`, plus optional `CODEX_PROFILE`, `CODEX_MODEL`, and `CODEX_APPROVAL_PRESET` values (see `.env.template`).
+3. (Optional) Set `CODEX_CLI_PATH` if the `codex` executable is not already on your `PATH`.
+4. Run an eval with the Codex target:
+
+```bash
+agentv eval evals/example-eval.yaml --target codex_cli
+```
+
+AgentV mirrors guideline and attachment files into the Codex workspace and passes the combined prompt to `codex exec --json`, so preread links behave the same way as the VS Code provider.
+
 ### With Optimization (Future)
 
 ```bash

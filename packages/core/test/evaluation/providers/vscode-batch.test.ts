@@ -25,7 +25,7 @@ afterEach(() => {
 });
 
 describe("VSCodeProvider batching", () => {
-  it("supports batch invocation when responses align and forwards attachments", async () => {
+  it("supports batch invocation when responses align and forwards input files", async () => {
     subagentMocks.dispatchBatchAgent.mockResolvedValue({
       exitCode: 0,
       responseFiles: ["/tmp/res1.md", "/tmp/res2.md"],
@@ -45,8 +45,8 @@ describe("VSCodeProvider batching", () => {
     );
 
     const requests: ProviderRequest[] = [
-      { prompt: "first", attachments: ["a.txt"], evalCaseId: "one" },
-      { prompt: "second", attachments: ["b.txt"], evalCaseId: "two" },
+      { prompt: "first", inputFiles: ["a.txt"], evalCaseId: "one" },
+      { prompt: "second", inputFiles: ["b.txt"], evalCaseId: "two" },
     ];
 
     const responses = await provider.invokeBatch?.(requests);
@@ -81,7 +81,7 @@ describe("VSCodeProvider batching", () => {
     );
 
     const responses = await provider.invokeBatch?.([
-      { prompt: "only", attachments: [], evalCaseId: "one" },
+      { prompt: "only", inputFiles: [], evalCaseId: "one" },
     ]);
 
     expect(responses).toBeDefined();

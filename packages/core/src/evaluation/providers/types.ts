@@ -8,6 +8,7 @@ export type ProviderKind =
   | "azure"
   | "anthropic"
   | "gemini"
+  | "codex"
   | "cli"
   | "mock"
   | "vscode"
@@ -21,6 +22,7 @@ export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
   "azure",
   "anthropic",
   "gemini",
+  "codex",
   "cli",
   "mock",
   "vscode",
@@ -35,6 +37,7 @@ export const PROVIDER_ALIASES: readonly string[] = [
   "azure-openai",    // alias for "azure"
   "google",          // alias for "gemini"
   "google-gemini",   // alias for "gemini"
+  "codex-cli",       // alias for "codex"
   "openai",          // legacy/future support
   "bedrock",         // legacy/future support
   "vertex",          // legacy/future support
@@ -50,7 +53,7 @@ export interface ProviderRequest {
   readonly guidelines?: string;
   readonly guideline_patterns?: readonly string[];
   readonly chatPrompt?: ChatPrompt;
-  readonly attachments?: readonly string[];
+  readonly inputFiles?: readonly string[];
   readonly evalCaseId?: string;
   readonly attempt?: number;
   readonly maxOutputTokens?: number;

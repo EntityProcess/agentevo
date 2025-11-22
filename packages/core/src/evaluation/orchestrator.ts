@@ -334,7 +334,7 @@ async function runBatchEvaluation(options: {
       prompt: promptInputs.request,
       guidelines: promptInputs.guidelines,
       guideline_patterns: evalCase.guideline_patterns,
-      attachments: evalCase.file_paths,
+      inputFiles: evalCase.file_paths,
       evalCaseId: evalCase.id,
       metadata: {
         systemPrompt: promptInputs.systemMessage ?? "",
@@ -881,7 +881,7 @@ async function invokeProvider(
       prompt: promptInputs.request,
       guidelines: promptInputs.guidelines,
       guideline_patterns: evalCase.guideline_patterns,
-      attachments: evalCase.file_paths,
+      inputFiles: evalCase.file_paths,
       evalCaseId: evalCase.id,
       attempt,
       metadata: {

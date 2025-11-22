@@ -176,7 +176,7 @@ export class CliProvider implements Provider {
         {
           prompt: "",
           guidelines: "",
-          attachments: [],
+          inputFiles: [],
           evalCaseId: "",
           attempt: 0,
         },
@@ -206,30 +206,30 @@ export class CliProvider implements Provider {
 function buildTemplateValues(
   request: Pick<
     ProviderRequest,
-    "prompt" | "guidelines" | "attachments" | "evalCaseId" | "attempt"
+    "prompt" | "guidelines" | "inputFiles" | "evalCaseId" | "attempt"
   >,
   config: CliResolvedConfig,
 ): Record<string, string> {
-  const attachments = normalizeAttachments(request.attachments);
+  const inputFiles = normalizeInputFiles(request.inputFiles);
   return {
     PROMPT: shellEscape(request.prompt ?? ""),
     GUIDELINES: shellEscape(request.guidelines ?? ""),
     EVAL_ID: shellEscape(request.evalCaseId ?? ""),
     ATTEMPT: shellEscape(String(request.attempt ?? 0)),
-    FILES: formatFileList(attachments, config.filesFormat),
+    FILES: formatFileList(inputFiles, config.filesFormat),
   };
 }
 
-function normalizeAttachments(
-  attachments: readonly string[] | undefined,
+function normalizeInputFiles(
+  inputFiles: readonly string[] | undefined,
 ): readonly string[] | undefined {
-  if (!attachments || attachments.length === 0) {
+  if (!inputFiles || inputFiles.length === 0) {
     return undefined;
   }
 
   const unique = new Map<string, string>();
-  for (const attachment of attachments) {
-    const absolutePath = path.resolve(attachment);
+  for (const inputFile of inputFiles) {
+    const absolutePath = path.resolve(inputFile);
     if (!unique.has(absolutePath)) {
       unique.set(absolutePath, absolutePath);
     }

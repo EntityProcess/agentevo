@@ -28,6 +28,13 @@ export interface GeminiResolvedConfig {
   readonly maxOutputTokens?: number;
 }
 
+export interface CodexResolvedConfig {
+  readonly executable: string;
+  readonly args?: readonly string[];
+  readonly cwd?: string;
+  readonly timeoutMs?: number;
+}
+
 export interface MockResolvedConfig {
   readonly response?: string;
   readonly delayMs?: number;
@@ -89,6 +96,14 @@ export type ResolvedTarget =
       readonly workers?: number;
       readonly providerBatching?: boolean;
       readonly config: GeminiResolvedConfig;
+    }
+  | {
+      readonly kind: "codex";
+      readonly name: string;
+      readonly judgeTarget?: string;
+      readonly workers?: number;
+      readonly providerBatching?: boolean;
+      readonly config: CodexResolvedConfig;
     }
   | {
       readonly kind: "mock";
@@ -179,6 +194,16 @@ export function resolveTargetDefinition(
         workers: parsed.workers,
         providerBatching,
         config: resolveGeminiConfig(parsed, env),
+      };
+    case "codex":
+    case "codex-cli":
+      return {
+        kind: "codex",
+        name: parsed.name,
+        judgeTarget: parsed.judge_target,
+        workers: parsed.workers,
+        providerBatching,
+        config: resolveCodexConfig(parsed, env),
       };
     case "mock":
       return {
@@ -295,6 +320,38 @@ function resolveGeminiConfig(
   };
 }
 
+function resolveCodexConfig(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  env: EnvLookup,
+): CodexResolvedConfig {
+  const settings = target.settings ?? {};
+  const executableSource = settings.executable ?? settings.command ?? settings.binary;
+  const argsSource = settings.args ?? settings.arguments;
+  const cwdSource = settings.cwd;
+  const timeoutSource = settings.timeout_seconds ?? settings.timeoutSeconds;
+
+  const executable =
+    resolveOptionalString(executableSource, env, `${target.name} codex executable`, {
+      allowLiteral: true,
+      optionalEnv: true,
+    }) ?? "codex";
+
+  const args = resolveOptionalStringArray(argsSource, env, `${target.name} codex args`);
+
+  const cwd = resolveOptionalString(cwdSource, env, `${target.name} codex cwd`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+  const timeoutMs = resolveTimeoutMs(timeoutSource, `${target.name} codex timeout`);
+
+  return {
+    executable,
+    args,
+    cwd,
+    timeoutMs,
+  };
+}
+
 function resolveMockConfig(target: z.infer<typeof BASE_TARGET_SCHEMA>): MockResolvedConfig {
   const settings = target.settings ?? {};
   const response = typeof settings.response === "string" ? settings.response : undefined;
@@ -341,7 +398,12 @@ function resolveCliConfig(
 ): CliResolvedConfig {
   const settings = target.settings ?? {};
   const commandTemplateSource = settings.command_template ?? settings.commandTemplate;
-  const filesFormat = resolveOptionalLiteralString(settings.files_format ?? settings.filesFormat);
+  const filesFormat = resolveOptionalLiteralString(
+    settings.files_format ??
+      settings.filesFormat ??
+      settings.attachments_format ??
+      settings.attachmentsFormat,
+  );
   const cwd = resolveOptionalString(settings.cwd, env, `${target.name} working directory`, {
     allowLiteral: true,
     optionalEnv: true,
@@ -517,11 +579,14 @@ function resolveOptionalString(
   }
   const allowLiteral = options?.allowLiteral ?? false;
   const optionalEnv = options?.optionalEnv ?? false;
-  if (!allowLiteral && isLikelyEnvReference(trimmed)) {
+  const looksLikeEnv = isLikelyEnvReference(trimmed);
+  if (looksLikeEnv) {
     if (optionalEnv) {
       return undefined;
     }
-    throw new Error(`Environment variable '${trimmed}' required for ${description} is not set`);
+    if (!allowLiteral) {
+      throw new Error(`Environment variable '${trimmed}' required for ${description} is not set`);
+    }
   }
   return trimmed;
 }
@@ -574,4 +639,41 @@ function resolveOptionalBoolean(source: unknown): boolean | undefined {
 
 function isLikelyEnvReference(value: string): boolean {
   return /^[A-Z0-9_]+$/.test(value);
+}
+
+function resolveOptionalStringArray(
+  source: unknown,
+  env: EnvLookup,
+  description: string,
+): readonly string[] | undefined {
+  if (source === undefined || source === null) {
+    return undefined;
+  }
+  if (!Array.isArray(source)) {
+    throw new Error(`${description} must be an array of strings`);
+  }
+  if (source.length === 0) {
+    return undefined;
+  }
+  const resolved: string[] = [];
+  for (let i = 0; i < source.length; i++) {
+    const item = source[i];
+    if (typeof item !== "string") {
+      throw new Error(`${description}[${i}] must be a string`);
+    }
+    const trimmed = item.trim();
+    if (trimmed.length === 0) {
+      throw new Error(`${description}[${i}] cannot be empty`);
+    }
+    const envValue = env[trimmed];
+    if (envValue !== undefined) {
+      if (envValue.trim().length === 0) {
+        throw new Error(`Environment variable '${trimmed}' for ${description}[${i}] is empty`);
+      }
+      resolved.push(envValue);
+    } else {
+      resolved.push(trimmed);
+    }
+  }
+  return resolved.length > 0 ? resolved : undefined;
 }

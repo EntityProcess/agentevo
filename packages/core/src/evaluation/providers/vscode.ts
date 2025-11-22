@@ -30,12 +30,12 @@ export class VSCodeProvider implements Provider {
       throw new Error("VS Code provider request was aborted before dispatch");
     }
 
-    const attachments = normalizeAttachments(request.attachments);
-    const promptContent = buildPromptDocument(request, attachments, request.guideline_patterns);
+    const inputFiles = normalizeAttachments(request.inputFiles);
+    const promptContent = buildPromptDocument(request, inputFiles, request.guideline_patterns);
 
     const session = await dispatchAgentSession({
-      userQuery: promptContent,  // Use full prompt content instead of just request.prompt
-      extraAttachments: attachments,
+      userQuery: promptContent,
+      extraAttachments: inputFiles,
       wait: this.config.waitForResponse,
       dryRun: this.config.dryRun,
       vscodeCmd: this.config.command,
@@ -54,7 +54,7 @@ export class VSCodeProvider implements Provider {
         text: "",
         raw: {
           session,
-          attachments,
+          inputFiles,
         },
       };
     }
@@ -65,7 +65,7 @@ export class VSCodeProvider implements Provider {
       text: responseText,
       raw: {
         session,
-        attachments,
+        inputFiles,
       },
     };
   }
@@ -77,19 +77,19 @@ export class VSCodeProvider implements Provider {
 
     const normalizedRequests = requests.map((req) => ({
       request: req,
-      attachments: normalizeAttachments(req.attachments),
+      inputFiles: normalizeAttachments(req.inputFiles),
     }));
 
-    const combinedAttachments = mergeAttachments(
-      normalizedRequests.map(({ attachments }) => attachments),
+    const combinedInputFiles = mergeAttachments(
+      normalizedRequests.map(({ inputFiles }) => inputFiles),
     );
-    const userQueries = normalizedRequests.map(({ request, attachments }) =>
-      buildPromptDocument(request, attachments, request.guideline_patterns),
+    const userQueries = normalizedRequests.map(({ request, inputFiles }) =>
+      buildPromptDocument(request, inputFiles, request.guideline_patterns),
     );
 
     const session = await dispatchBatchAgent({
       userQueries,
-      extraAttachments: combinedAttachments,
+      extraAttachments: combinedInputFiles,
       wait: this.config.waitForResponse,
       dryRun: this.config.dryRun,
       vscodeCmd: this.config.command,
@@ -104,12 +104,12 @@ export class VSCodeProvider implements Provider {
     }
 
     if (this.config.dryRun) {
-      return normalizedRequests.map(({ attachments }) => ({
+      return normalizedRequests.map(({ inputFiles }) => ({
         text: "",
         raw: {
           session,
-          attachments,
-          allAttachments: combinedAttachments,
+          inputFiles,
+          allInputFiles: combinedInputFiles,
         },
       }));
     }
@@ -127,8 +127,8 @@ export class VSCodeProvider implements Provider {
         text: responseText,
         raw: {
           session,
-          attachments: normalizedRequests[index]?.attachments,
-          allAttachments: combinedAttachments,
+          inputFiles: normalizedRequests[index]?.inputFiles,
+          allInputFiles: combinedInputFiles,
           responseFile,
         },
       });
@@ -270,8 +270,8 @@ function mergeAttachments(all: readonly (readonly string[] | undefined)[]): stri
   const deduped = new Set<string>();
   for (const list of all) {
     if (!list) continue;
-    for (const attachment of list) {
-      deduped.add(path.resolve(attachment));
+    for (const inputFile of list) {
+      deduped.add(path.resolve(inputFile));
     }
   }
   return deduped.size > 0 ? Array.from(deduped) : undefined;

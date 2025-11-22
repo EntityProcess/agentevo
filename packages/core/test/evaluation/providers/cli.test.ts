@@ -13,7 +13,7 @@ const baseConfig: CliResolvedConfig = {
 const baseRequest: ProviderRequest = {
   prompt: "Hello world",
   guidelines: "guideline text",
-  attachments: ["./fixtures/spec.md"],
+  inputFiles: ["./fixtures/spec.md"],
   evalCaseId: "case-1",
   attempt: 0,
 };
