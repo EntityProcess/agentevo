@@ -31,9 +31,7 @@ describe("CodexProvider", () => {
       "codex-target",
       {
         executable: process.execPath,
-        profile: "default",
-        model: "test",
-        approvalPreset: "auto",
+        args: ["--profile", "default", "--model", "test"],
         timeoutMs: 1000,
       },
       runner,
@@ -68,8 +66,12 @@ describe("CodexProvider", () => {
       "never",
       "--skip-git-repo-check",
     ]);
-    expect(invocation.args).toContain("--profile");
     expect(invocation.args).toContain("--ask-for-approval");
+    expect(invocation.args).toContain("never");
+    expect(invocation.args).toContain("--profile");
+    expect(invocation.args).toContain("default");
+    expect(invocation.args).toContain("--model");
+    expect(invocation.args).toContain("test");
     expect(invocation.args[invocation.args.length - 1]).toBe("-");
     expect(invocation.prompt).toContain("python.instructions.md");
     expect(invocation.prompt).toContain("main.py");

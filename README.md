@@ -208,26 +208,6 @@ Each target specifies:
     model: "AZURE_DEPLOYMENT_NAME"
 ```
 
-**Anthropic targets:**
-
-```yaml
-- name: anthropic_base
-  provider: anthropic
-  settings:
-    api_key: "ANTHROPIC_API_KEY"
-    model: "ANTHROPIC_MODEL"
-```
-
-**Google Gemini targets:**
-
-```yaml
-- name: gemini_base
-  provider: gemini
-  settings:
-    api_key: "GOOGLE_API_KEY"
-    model: "GOOGLE_GEMINI_MODEL"  # Optional, defaults to gemini-2.0-flash-exp
-```
-
 **VS Code targets:**
 
 ```yaml
@@ -248,7 +228,7 @@ Each target specifies:
 - name: local_cli
   provider: cli
   settings:
-    command_template: 'code chat {PROMPT} {FILES}'
+    command_template: 'somecommand {PROMPT} {FILES}'
     files_format: '--file {path}'
     cwd: PROJECT_ROOT               # optional working directory
     env:                            # merged into process.env
@@ -258,9 +238,6 @@ Each target specifies:
       type: command                 # or http
       command_template: code --version
 ```
-
-CLI placeholders are `{PROMPT}`, `{GUIDELINES}`, `{EVAL_ID}`, `{ATTEMPT}`, and `{FILES}`. Values are shell-escaped automatically; avoid wrapping them in extra quotes unless your CLI requires nested quoting. `{FILES}` renders each file path using `files_format` (supports `{path}` and `{basename}`) and joins with spaces. Optional `healthcheck` probes (HTTP or command) run once before the first eval and abort the run on failure.
-CLI troubleshooting: unsupported placeholders fail validation, so stick to the tokens above; if your CLI logs show doubled quotes, drop extra quoting in `command_template` and rely on the built-in escaping; if healthchecks fail, raise `timeout_seconds` or point the probe at a fast status endpoint.
 
 **Codex CLI targets:**
 
@@ -294,22 +271,116 @@ Example with custom timeout settings:
 agentv eval evals/projectx/example.yaml --target vscode_projectx --agent-timeout 180 --max-retries 3
 ```
 
-## How the Evals Work
+## Writing Custom Evaluators
 
-For each eval case in a `.yaml` file:
+### Code Evaluator I/O Contract
 
-1. Parse YAML and collect user messages (inline text and referenced files)
-2. Extract code blocks from text for structured prompting
-3. Generate a candidate answer via the configured provider/model
-4. Score against the expected answer using AI-powered quality grading
-5. Output results in JSONL or YAML format with detailed metrics
+Code evaluators receive input via stdin and write output to stdout as JSON.
 
-### VS Code Copilot Target
+**Input Format (via stdin):**
+```json
+{
+  "task": "string describing the task",
+  "outcome": "expected outcome description",
+  "expected": "expected output string",
+  "output": "generated code/text from the agent",
+  "system_message": "system message if any",
+  "guideline_paths": ["path1", "path2"],
+  "attachments": ["file1", "file2"],
+  "user_segments": [{"type": "text", "value": "..."}]
+}
+```
 
-- Opens your configured workspace and uses the `subagent` library to programmatically invoke VS Code Copilot
-- The prompt is built from the `.yaml` user content (task, files, code blocks)
-- Copilot is instructed to complete the task within the workspace context
-- Results are captured and scored automatically
+**Output Format (to stdout):**
+```json
+{
+  "score": 0.85,
+  "hits": ["list of successful checks"],
+  "misses": ["list of failed checks"],
+  "reasoning": "explanation of the score"
+}
+```
+
+**Key Points:**
+- Evaluators receive **full context** but should select only relevant fields
+- Most evaluators only need `output` field - ignore the rest to avoid false positives
+- Complex evaluators can use `task`, `expected`, or `guideline_paths` for context-aware validation
+- Score range: `0.0` to `1.0` (float)
+- `hits` and `misses` are optional but recommended for debugging
+
+### Code Evaluator Script Template
+
+```python
+#!/usr/bin/env python3
+import json
+import sys
+
+def evaluate(input_data):
+    # Extract only the fields you need
+    output = input_data.get("output", "")
+    
+    # Your validation logic here
+    score = 0.0  # to 1.0
+    hits = ["successful check 1", "successful check 2"]
+    misses = ["failed check 1"]
+    reasoning = "Explanation of score"
+    
+    return {
+        "score": score,
+        "hits": hits,
+        "misses": misses,
+        "reasoning": reasoning
+    }
+
+if __name__ == "__main__":
+    try:
+        input_data = json.loads(sys.stdin.read())
+        result = evaluate(input_data)
+        print(json.dumps(result, indent=2))
+    except Exception as e:
+        error_result = {
+            "score": 0.0,
+            "hits": [],
+            "misses": [f"Evaluator error: {str(e)}"],
+            "reasoning": f"Evaluator error: {str(e)}"
+        }
+        print(json.dumps(error_result, indent=2))
+        sys.exit(1)
+```
+
+### LLM Judge Template Structure
+
+```markdown
+# Judge Name
+
+Evaluation criteria and guidelines...
+
+## Scoring Guidelines
+0.9-1.0: Excellent
+0.7-0.8: Good
+...
+
+## Output Format
+{
+  "score": 0.85,
+  "passed": true,
+  "reasoning": "..."
+}
+```
+
+## Next Steps
+
+- Review `docs/examples/simple/evals/example-eval.yaml` to understand the schema
+- Create your own eval cases following the schema
+- Write custom evaluator scripts for domain-specific validation
+- Create LLM judge templates for semantic evaluation
+- Set up optimizer configs when ready to improve prompts
+
+## Resources
+
+- [Simple Example README](docs/examples/simple/README.md)
+- [Schema Specification](docs/openspec/changes/update-eval-schema-v2/)
+- [Ax ACE Documentation](https://github.com/ax-llm/ax/blob/main/docs/ACE.md)
 
 ## Scoring and Outputs
 

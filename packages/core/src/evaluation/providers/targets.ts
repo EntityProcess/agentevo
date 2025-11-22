@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import type { EnvLookup, TargetDefinition } from "./types.js";
 
-const CLI_PLACEHOLDERS = new Set(["PROMPT", "GUIDELINES", "EVAL_ID", "ATTEMPT", "ATTACHMENTS", "FILES"]);
+const CLI_PLACEHOLDERS = new Set(["PROMPT", "GUIDELINES", "EVAL_ID", "ATTEMPT", "FILES"]);
 
 export interface AzureResolvedConfig {
   readonly resourceName: string;
@@ -30,9 +30,7 @@ export interface GeminiResolvedConfig {
 
 export interface CodexResolvedConfig {
   readonly executable: string;
-  readonly profile?: string;
-  readonly model?: string;
-  readonly approvalPreset?: string;
+  readonly args?: readonly string[];
   readonly cwd?: string;
   readonly timeoutMs?: number;
 }
@@ -328,9 +326,7 @@ function resolveCodexConfig(
 ): CodexResolvedConfig {
   const settings = target.settings ?? {};
   const executableSource = settings.executable ?? settings.command ?? settings.binary;
-  const profileSource = settings.profile;
-  const modelSource = settings.model;
-  const approvalSource = settings.approval_preset ?? settings.approvalPreset;
+  const argsSource = settings.args ?? settings.arguments;
   const cwdSource = settings.cwd;
   const timeoutSource = settings.timeout_seconds ?? settings.timeoutSeconds;
 
@@ -340,23 +336,7 @@ function resolveCodexConfig(
       optionalEnv: true,
     }) ?? "codex";
 
-  const profile = resolveOptionalString(profileSource, env, `${target.name} codex profile`, {
-    allowLiteral: true,
-    optionalEnv: true,
-  });
-  const model = resolveOptionalString(modelSource, env, `${target.name} codex model`, {
-    allowLiteral: true,
-    optionalEnv: true,
-  });
-  const approvalPreset = resolveOptionalString(
-    approvalSource,
-    env,
-    `${target.name} codex approval preset`,
-    {
-      allowLiteral: true,
-      optionalEnv: true,
-    },
-  );
+  const args = resolveOptionalStringArray(argsSource, env, `${target.name} codex args`);
 
   const cwd = resolveOptionalString(cwdSource, env, `${target.name} codex cwd`, {
     allowLiteral: true,
@@ -366,9 +346,7 @@ function resolveCodexConfig(
 
   return {
     executable,
-    profile,
-    model,
-    approvalPreset,
+    args,
     cwd,
     timeoutMs,
   };
@@ -661,4 +639,41 @@ function resolveOptionalBoolean(source: unknown): boolean | undefined {
 
 function isLikelyEnvReference(value: string): boolean {
   return /^[A-Z0-9_]+$/.test(value);
+}
+
+function resolveOptionalStringArray(
+  source: unknown,
+  env: EnvLookup,
+  description: string,
+): readonly string[] | undefined {
+  if (source === undefined || source === null) {
+    return undefined;
+  }
+  if (!Array.isArray(source)) {
+    throw new Error(`${description} must be an array of strings`);
+  }
+  if (source.length === 0) {
+    return undefined;
+  }
+  const resolved: string[] = [];
+  for (let i = 0; i < source.length; i++) {
+    const item = source[i];
+    if (typeof item !== "string") {
+      throw new Error(`${description}[${i}] must be a string`);
+    }
+    const trimmed = item.trim();
+    if (trimmed.length === 0) {
+      throw new Error(`${description}[${i}] cannot be empty`);
+    }
+    const envValue = env[trimmed];
+    if (envValue !== undefined) {
+      if (envValue.trim().length === 0) {
+        throw new Error(`Environment variable '${trimmed}' for ${description}[${i}] is empty`);
+      }
+      resolved.push(envValue);
+    } else {
+      resolved.push(trimmed);
+    }
+  }
+  return resolved.length > 0 ? resolved : undefined;
 }

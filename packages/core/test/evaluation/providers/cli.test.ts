@@ -5,8 +5,8 @@ import type { CliResolvedConfig } from "../../../src/evaluation/providers/target
 import type { ProviderRequest } from "../../../src/evaluation/providers/types.js";
 
 const baseConfig: CliResolvedConfig = {
-  commandTemplate: "agent-cli run {PROMPT} {ATTACHMENTS}",
-  attachmentsFormat: "--file {path}",
+  commandTemplate: "agent-cli run {PROMPT} {FILES}",
+  filesFormat: "--file {path}",
   timeoutMs: 2000,
 };
 

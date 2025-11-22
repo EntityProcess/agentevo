@@ -259,13 +259,13 @@ describe("resolveTargetDefinition", () => {
         name: "shell-cli",
         provider: "cli",
         settings: {
-          command_template: "code chat {PROMPT} {ATTACHMENTS}",
+          command_template: "code chat {PROMPT} {FILES}",
           cwd: "WORKDIR",
           env: {
             API_TOKEN: "CLI_TOKEN",
           },
           timeout_seconds: 3,
-          attachments_format: "--file {path}",
+          files_format: "--file {path}",
         },
       },
       env,
@@ -285,7 +285,6 @@ describe("resolveTargetDefinition", () => {
 
   it("resolves codex settings with overrides", () => {
     const env = {
-      CODEX_PROFILE_ENV: "review",
       CODEX_EXEC: "/usr/local/bin/codex",
     } satisfies Record<string, string>;
 
@@ -295,9 +294,7 @@ describe("resolveTargetDefinition", () => {
         provider: "codex",
         settings: {
           executable: "CODEX_EXEC",
-          profile: "CODEX_PROFILE_ENV",
-          model: "gpt-4o-preview",
-          approval_preset: "auto",
+          args: ["--profile", "review", "--model", "gpt-4o-preview", "--ask-for-approval", "auto"],
           timeout_seconds: 45,
           cwd: "/tmp/codex",
         },
@@ -312,9 +309,7 @@ describe("resolveTargetDefinition", () => {
 
     expect(target.config).toMatchObject({
       executable: "/usr/local/bin/codex",
-      profile: "review",
-      model: "gpt-4o-preview",
-      approvalPreset: "auto",
+      args: ["--profile", "review", "--model", "gpt-4o-preview", "--ask-for-approval", "auto"],
       timeoutMs: 45000,
       cwd: "/tmp/codex",
     });
@@ -336,7 +331,7 @@ describe("resolveTargetDefinition", () => {
 
     expect(target.config.executable).toBe("codex");
     expect(target.config.timeoutMs).toBeUndefined();
-    expect(target.config.profile).toBeUndefined();
+    expect(target.config.args).toBeUndefined();
   });
 
   it("falls back to default codex executable when env reference is unset", () => {

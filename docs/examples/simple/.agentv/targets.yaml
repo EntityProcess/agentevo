@@ -63,10 +63,14 @@ targets:
     provider: codex
     judge_target: azure_base
     settings:
-      # Uses the Codex CLI with the profile configured via `codex configure`
-      executable: CODEX_CLI_PATH          # Optional, defaults to `codex`
-      profile: CODEX_PROFILE
-      model: CODEX_MODEL                  # Optional override per target
-      approval_preset: CODEX_APPROVAL_PRESET
+      # Uses the Codex CLI (defaults to `codex` on PATH)
+      # executable: CODEX_CLI_PATH        # Optional: override executable path
+      # args:                             # Optional additional CLI arguments
+      #   - --profile
+      #   - CODEX_PROFILE
+      #   - --model
+      #   - CODEX_MODEL
+      #   - --ask-for-approval
+      #   - CODEX_APPROVAL_PRESET
       timeout_seconds: 180
       cwd: CODEX_WORKSPACE_DIR            # Where scratch workspaces are created

@@ -138,14 +138,10 @@ export class CodexProvider implements Provider {
 
   private buildCodexArgs(): string[] {
     const args = ["exec", "--json", "--color", "never", "--skip-git-repo-check"];
-    if (this.config.profile) {
-      args.push("--profile", this.config.profile);
-    }
-    if (this.config.model) {
-      args.push("--model", this.config.model);
-    }
-    if (this.config.approvalPreset) {
-      args.push("--ask-for-approval", this.config.approvalPreset);
+    // Default to 'never' for approval preset in unattended evaluation runs
+    args.push("--ask-for-approval", "never");
+    if (this.config.args && this.config.args.length > 0) {
+      args.push(...this.config.args);
     }
     args.push("-");
     return args;
