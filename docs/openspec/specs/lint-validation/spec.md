@@ -1,8 +1,10 @@
-# lint-validation Specification
+# Validation Specification
 
 ## Purpose
 TBD - created by archiving change add-eval-linter. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Validate Command
 
 The system SHALL provide a `validate` command that validates AgentV YAML configuration files.
