@@ -194,6 +194,7 @@ Environment keys (configured via targets.yaml):
 - **Anthropic Claude:** Set environment variables specified in your target's `settings.api_key` and `settings.model`
 - **Google Gemini:** Set environment variables specified in your target's `settings.api_key` and optional `settings.model`
 - **VS Code:** Set environment variable specified in your target's `settings.workspace_env` → `.code-workspace` path
+- **CLI provider:** Configure `command_template` plus optional `cwd`, `env`, `timeout_seconds`, and `healthcheck` fields in targets.yaml; CLI `settings.env` entries are merged into the process environment
 
 ## Targets and Environment Variables
 
@@ -204,7 +205,7 @@ Execution targets in `.agentv/targets.yaml` decouple evals from providers/settin
 Each target specifies:
 
 - `name`: Unique identifier for the target
-- `provider`: The model provider (`azure`, `anthropic`, `gemini`, `vscode`, `vscode-insiders`, or `mock`)
+- `provider`: The model provider (`azure`, `anthropic`, `gemini`, `vscode`, `vscode-insiders`, `cli`, or `mock`)
 - `settings`: Environment variable names to use for this target
 
 ### Examples
@@ -253,6 +254,26 @@ Each target specifies:
   settings:
     workspace_env: "EVAL_PROJECTX_WORKSPACE_PATH"
 ```
+
+**CLI targets (template-based):**
+
+```yaml
+- name: local_cli
+  provider: cli
+  settings:
+    command_template: 'code chat {PROMPT} {ATTACHMENTS}'
+    attachments_format: '--file {path}'
+    cwd: PROJECT_ROOT               # optional working directory
+    env:                            # merged into process.env
+      API_TOKEN: LOCAL_AGENT_TOKEN
+    timeout_seconds: 30             # optional per-command timeout
+    healthcheck:
+      type: command                 # or http
+      command_template: code --version
+```
+
+CLI placeholders are `{PROMPT}`, `{GUIDELINES}`, `{EVAL_ID}`, `{ATTEMPT}`, `{ATTACHMENTS}`, and `{FILES}`. Values are shell-escaped automatically; avoid wrapping them in extra quotes unless your CLI requires nested quoting. `{ATTACHMENTS}`/`{FILES}` render each path using `attachments_format`/`files_format` (supports `{path}` and `{basename}`) and join with spaces. Optional `healthcheck` probes (HTTP or command) run once before the first eval and abort the run on failure.
+CLI troubleshooting: unsupported placeholders fail validation, so stick to the tokens above; if your CLI logs show doubled quotes, drop extra quoting in `command_template` and rely on the built-in escaping; if healthchecks fail, raise `timeout_seconds` or point the probe at a fast status endpoint.
 
 ## Timeout Handling and Retries
 

@@ -8,6 +8,7 @@ export type ProviderKind =
   | "azure"
   | "anthropic"
   | "gemini"
+  | "cli"
   | "mock"
   | "vscode"
   | "vscode-insiders";
@@ -20,6 +21,7 @@ export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
   "azure",
   "anthropic",
   "gemini",
+  "cli",
   "mock",
   "vscode",
   "vscode-insiders",

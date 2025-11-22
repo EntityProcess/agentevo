@@ -174,5 +174,75 @@ targets:
       
       await cleanup();
     });
+
+    it("validates cli provider settings with command template", async () => {
+      const content = `
+$schema: agentv-targets-v2
+targets:
+  - name: cli-target
+    provider: cli
+    settings:
+      commandTemplate: "code chat {PROMPT} {ATTACHMENTS}"
+      attachmentsFormat: "--file {path}"
+      timeoutSeconds: 5
+      env:
+        API_TOKEN: "TOKEN_ENV"
+`;
+      const filePath = await createTestFile("cli-valid.yaml", content);
+      const result = await validateTargetsFile(filePath);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+
+      await cleanup();
+    });
+
+    it("rejects cli provider missing command template", async () => {
+      const content = `
+$schema: agentv-targets-v2
+targets:
+  - name: cli-target
+    provider: cli
+    settings:
+      timeoutSeconds: 5
+`;
+      const filePath = await createTestFile("cli-missing-command.yaml", content);
+      const result = await validateTargetsFile(filePath);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            location: expect.stringContaining("commandTemplate"),
+          }),
+        ]),
+      );
+
+      await cleanup();
+    });
+
+    it("rejects cli provider with unknown placeholders", async () => {
+      const content = `
+$schema: agentv-targets-v2
+targets:
+  - name: cli-target
+    provider: cli
+    settings:
+      commandTemplate: "run-task {UNKNOWN_PLACEHOLDER}"
+`;
+      const filePath = await createTestFile("cli-bad-placeholder.yaml", content);
+      const result = await validateTargetsFile(filePath);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            message: expect.stringContaining("Unknown CLI placeholder"),
+          }),
+        ]),
+      );
+
+      await cleanup();
+    });
   });
 });

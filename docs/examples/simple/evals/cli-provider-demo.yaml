@@ -1,0 +1,28 @@
+# CLI provider demonstration: runs the template-based CLI target
+
+$schema: agentv-eval-v2
+description: Minimal demo showing how to invoke a CLI target with file attachments
+
+# Use the CLI target defined in .agentv/targets.yaml
+target: local_cli
+
+evalcases:
+  - id: cli-provider-echo
+    outcome: CLI echoes the prompt and mentions all attachment names
+    grader: llm_judge
+
+    input_messages:
+      - role: user
+        content:
+          - type: text
+            value: |-
+              Please echo this request in one short sentence and mention all attached files by name.
+          - type: file
+            value: ../prompts/python.instructions.md
+          - type: file
+            value: ./attachments/example.txt
+
+    expected_messages:
+      - role: assistant
+        content: |-
+          Attachments detected (2): python.instructions.md, example.txt.

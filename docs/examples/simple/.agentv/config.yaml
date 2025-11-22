@@ -1,0 +1,25 @@
+$schema: agentv-config-v2
+
+# Example .agentv/config.yaml Configuration
+
+# Customize which files are treated as guidelines vs regular file content
+# using glob patterns. If this file is not present, AgentV uses default patterns.
+
+# Default patterns (used when this file is absent):
+# - "**/*.instructions.md"
+# - "**/instructions/**"
+# - "**/*.prompt.md"  
+# - "**/prompts/**"
+
+# Custom guideline patterns:
+guideline_patterns:
+  - "**/*.instructions.md"
+  - "**/instructions/**"
+  - "**/*.prompt.md"
+  - "**/prompts/**"
+
+# Notes:
+# - Patterns use standard glob syntax (via micromatch library)
+# - Paths are normalized to forward slashes for cross-platform compatibility
+# - Only files matching these patterns are loaded as guidelines
+# - All other files referenced in eval cases are treated as regular file content

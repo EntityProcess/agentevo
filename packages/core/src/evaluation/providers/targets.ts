@@ -2,6 +2,8 @@ import { z } from "zod";
 
 import type { EnvLookup, TargetDefinition } from "./types.js";
 
+const CLI_PLACEHOLDERS = new Set(["PROMPT", "GUIDELINES", "EVAL_ID", "ATTEMPT", "ATTACHMENTS", "FILES"]);
+
 export interface AzureResolvedConfig {
   readonly resourceName: string;
   readonly deploymentName: string;
@@ -39,6 +41,29 @@ export interface VSCodeResolvedConfig {
   readonly dryRun: boolean;
   readonly subagentRoot?: string;
   readonly workspaceTemplate?: string;
+}
+
+export type CliHealthcheck =
+  | {
+      readonly type: "http";
+      readonly url: string;
+      readonly timeoutMs?: number;
+    }
+  | {
+      readonly type: "command";
+      readonly commandTemplate: string;
+      readonly timeoutMs?: number;
+      readonly cwd?: string;
+    };
+
+export interface CliResolvedConfig {
+  readonly commandTemplate: string;
+  readonly attachmentsFormat?: string;
+  readonly filesFormat?: string;
+  readonly cwd?: string;
+  readonly env?: Record<string, string>;
+  readonly timeoutMs?: number;
+  readonly healthcheck?: CliHealthcheck;
 }
 
 export type ResolvedTarget =
@@ -81,6 +106,14 @@ export type ResolvedTarget =
       readonly workers?: number;
       readonly providerBatching?: boolean;
       readonly config: VSCodeResolvedConfig;
+    }
+  | {
+      readonly kind: "cli";
+      readonly name: string;
+      readonly judgeTarget?: string;
+      readonly workers?: number;
+      readonly providerBatching?: boolean;
+      readonly config: CliResolvedConfig;
     };
 
 const BASE_TARGET_SCHEMA = z.object({
@@ -166,6 +199,15 @@ export function resolveTargetDefinition(
         workers: parsed.workers,
         providerBatching,
         config: resolveVSCodeConfig(parsed, env, provider === "vscode-insiders"),
+      };
+    case "cli":
+      return {
+        kind: "cli",
+        name: parsed.name,
+        judgeTarget: parsed.judge_target,
+        workers: parsed.workers,
+        providerBatching,
+        config: resolveCliConfig(parsed, env),
       };
     default:
       throw new Error(`Unsupported provider '${parsed.provider}' in target '${parsed.name}'`);
@@ -292,6 +334,151 @@ function resolveVSCodeConfig(
     }),
     workspaceTemplate,
   };
+}
+
+function resolveCliConfig(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  env: EnvLookup,
+): CliResolvedConfig {
+  const settings = target.settings ?? {};
+  const commandTemplateSource = settings.command_template ?? settings.commandTemplate;
+  const attachmentsFormat = resolveOptionalLiteralString(
+    settings.attachments_format ?? settings.attachmentsFormat,
+  );
+  const filesFormat = resolveOptionalLiteralString(settings.files_format ?? settings.filesFormat);
+  const cwd = resolveOptionalString(settings.cwd, env, `${target.name} working directory`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+  const envOverrides = resolveEnvOverrides(settings.env, env, target.name);
+  const timeoutMs = resolveTimeoutMs(settings.timeout_seconds ?? settings.timeoutSeconds, `${target.name} timeout`);
+  const healthcheck = resolveCliHealthcheck(settings.healthcheck, env, target.name);
+
+  const commandTemplate = resolveString(
+    commandTemplateSource,
+    env,
+    `${target.name} CLI command template`,
+    true,
+  );
+  assertSupportedCliPlaceholders(commandTemplate, `${target.name} CLI command template`);
+
+  return {
+    commandTemplate,
+    attachmentsFormat,
+    filesFormat,
+    cwd,
+    env: envOverrides,
+    timeoutMs,
+    healthcheck,
+  };
+}
+
+function resolveEnvOverrides(
+  source: unknown,
+  env: EnvLookup,
+  targetName: string,
+): Record<string, string> | undefined {
+  if (source === undefined || source === null) {
+    return undefined;
+  }
+  if (typeof source !== "object" || Array.isArray(source)) {
+    throw new Error(`${targetName} env overrides must be an object map of strings`);
+  }
+
+  const entries = Object.entries(source as Record<string, unknown>);
+  const resolved: Record<string, string> = {};
+  for (const [key, value] of entries) {
+    if (typeof value !== "string") {
+      throw new Error(`${targetName} env override '${key}' must be a string`);
+    }
+    const resolvedValue = resolveString(value, env, `${targetName} env override '${key}'`);
+    resolved[key] = resolvedValue;
+  }
+  return Object.keys(resolved).length > 0 ? resolved : undefined;
+}
+
+function resolveTimeoutMs(source: unknown, description: string): number | undefined {
+  const seconds = resolveOptionalNumber(source, `${description} (seconds)`);
+  if (seconds === undefined) {
+    return undefined;
+  }
+  if (seconds <= 0) {
+    throw new Error(`${description} must be greater than zero seconds`);
+  }
+  return Math.floor(seconds * 1000);
+}
+
+function resolveCliHealthcheck(
+  source: unknown,
+  env: EnvLookup,
+  targetName: string,
+): CliHealthcheck | undefined {
+  if (source === undefined || source === null) {
+    return undefined;
+  }
+  if (typeof source !== "object" || Array.isArray(source)) {
+    throw new Error(`${targetName} healthcheck must be an object`);
+  }
+
+  const candidate = source as Record<string, unknown>;
+  const type = candidate.type;
+  const timeoutMs = resolveTimeoutMs(
+    candidate.timeout_seconds ?? candidate.timeoutSeconds,
+    `${targetName} healthcheck timeout`,
+  );
+
+  if (type === "http") {
+    const url = resolveString(candidate.url, env, `${targetName} healthcheck URL`);
+    return {
+      type: "http",
+      url,
+      timeoutMs,
+    };
+  }
+
+  if (type === "command") {
+    const commandTemplate = resolveString(
+      candidate.command_template ?? candidate.commandTemplate,
+      env,
+      `${targetName} healthcheck command template`,
+      true,
+    );
+    assertSupportedCliPlaceholders(commandTemplate, `${targetName} healthcheck command template`);
+    const cwd = resolveOptionalString(candidate.cwd, env, `${targetName} healthcheck cwd`, {
+      allowLiteral: true,
+      optionalEnv: true,
+    });
+    return {
+      type: "command",
+      commandTemplate,
+      timeoutMs,
+      cwd,
+    };
+  }
+
+  throw new Error(`${targetName} healthcheck type must be 'http' or 'command'`);
+}
+
+function assertSupportedCliPlaceholders(template: string, description: string): void {
+  const placeholders = extractCliPlaceholders(template);
+  for (const placeholder of placeholders) {
+    if (!CLI_PLACEHOLDERS.has(placeholder)) {
+      throw new Error(
+        `${description} includes unsupported placeholder '{${placeholder}}'. Supported placeholders: ${Array.from(CLI_PLACEHOLDERS).join(", ")}`,
+      );
+    }
+  }
+}
+
+function extractCliPlaceholders(template: string): string[] {
+  const matches = template.matchAll(/\{([A-Z_]+)\}/g);
+  const results: string[] = [];
+  for (const match of matches) {
+    if (match[1]) {
+      results.push(match[1]);
+    }
+  }
+  return results;
 }
 
 function resolveString(

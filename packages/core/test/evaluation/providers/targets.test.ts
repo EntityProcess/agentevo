@@ -247,6 +247,56 @@ describe("resolveTargetDefinition", () => {
     expect(target.kind).toBe("mock");
     expect(target.providerBatching).toBe(true);
   });
+
+  it("resolves cli settings including env, cwd, and timeout", () => {
+    const env = {
+      WORKDIR: "/tmp/project",
+      CLI_TOKEN: "secret-token",
+    } satisfies Record<string, string>;
+
+    const target = resolveTargetDefinition(
+      {
+        name: "shell-cli",
+        provider: "cli",
+        settings: {
+          command_template: "code chat {PROMPT} {ATTACHMENTS}",
+          cwd: "WORKDIR",
+          env: {
+            API_TOKEN: "CLI_TOKEN",
+          },
+          timeout_seconds: 3,
+          attachments_format: "--file {path}",
+        },
+      },
+      env,
+    );
+
+    expect(target.kind).toBe("cli");
+    if (target.kind !== "cli") {
+      throw new Error("expected cli target");
+    }
+
+    expect(target.config.commandTemplate).toContain("{PROMPT}");
+    expect(target.config.cwd).toBe("/tmp/project");
+    expect(target.config.env?.API_TOKEN).toBe("secret-token");
+    expect(target.config.timeoutMs).toBe(3000);
+    expect(target.config.attachmentsFormat).toBe("--file {path}");
+  });
+
+  it("throws for unknown cli placeholders", () => {
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: "bad-cli",
+          provider: "cli",
+          settings: {
+            command_template: "run-task {UNKNOWN}",
+          },
+        },
+        {},
+      ),
+    ).toThrow(/unsupported placeholder/i);
+  });
 });
 
 describe("createProvider", () => {

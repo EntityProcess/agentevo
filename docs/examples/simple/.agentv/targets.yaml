@@ -1,0 +1,60 @@
+$schema: agentv-targets-v2
+
+# A list of all supported evaluation targets for the project.
+# Each target defines a provider and its specific configuration.
+# Actual values for paths/keys are stored in the local .env file.
+
+targets:
+  - name: vscode_projectx
+    provider: vscode
+    settings:
+      # VS Code provider requires a workspace template path.
+      workspace_template: PROJECTX_WORKSPACE_PATH
+      provider_batching: true
+    # This key makes the judge model configurable and is good practice
+    judge_target: azure_base
+
+  - name: vscode_insiders_projectx
+    provider: vscode-insiders
+    settings:
+      # VS Code Insiders provider (preview version) requires a workspace template path.
+      workspace_template: PROJECTX_WORKSPACE_PATH
+      # provider_batching: true
+    # This key makes the judge model configurable and is good practice
+    judge_target: azure_base
+
+  - name: azure_base
+    provider: azure
+    # The base LLM provider needs no extra settings, as the model is
+    # defined in the .env file.
+    settings:
+      endpoint: AZURE_OPENAI_ENDPOINT
+      api_key: AZURE_OPENAI_API_KEY
+      model: AZURE_DEPLOYMENT_NAME
+
+  - name: default
+    provider: azure
+    # The base LLM provider needs no extra settings, as the model is
+    # defined in the .env file.
+    settings:
+      endpoint: AZURE_OPENAI_ENDPOINT
+      api_key: AZURE_OPENAI_API_KEY
+      model: AZURE_DEPLOYMENT_NAME
+
+  - name: local_cli
+    provider: cli
+    judge_target: azure_base
+    settings:
+      # Passes the fully rendered prompt and any attached files to a local Node script
+      command_template: node ./mock-cli.js "{PROMPT}" {FILES}
+      # Attach files with a prefix. {path} and {basename} are both supported.
+      attachments_format: --file "{path}"
+      files_format: --file "{path}"
+      # Optional working directory and env overrides resolved from .env
+      cwd: PROJECT_ROOT
+      env:
+        API_TOKEN: LOCAL_AGENT_TOKEN
+      timeout_seconds: 30
+      healthcheck:
+        type: command
+        command_template: node ./mock-cli.js --healthcheck

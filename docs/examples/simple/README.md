@@ -84,6 +84,20 @@ agentv eval evals/example-eval.yaml
 agentv eval evals/example-eval.yaml --target azure_base
 ```
 
+### CLI provider sample
+
+The bundled `.agentv/targets.yaml` includes a `local_cli` target that shells out to an existing CLI. Placeholders `{PROMPT}`, `{GUIDELINES}`, `{EVAL_ID}`, `{ATTEMPT}`, `{ATTACHMENTS}`, and `{FILES}` are shell-escaped automatically; adjust `attachments_format`/`files_format` (`{path}`/`{basename}`) and optional `healthcheck`/`timeout_seconds` to match your CLI's expectations.
+
+To try it locally:
+
+```bash
+# 1) Ensure Node is available (uses mock-cli.js in this directory)
+# 2) Set PROJECT_ROOT/LOCAL_AGENT_TOKEN in .env (PROJECT_ROOT should point here)
+# 3) Ensure your judge provider env (azure_base) is set for llm_judge grading
+# 4) Run the demo eval with the CLI provider target
+agentv eval evals/cli-provider-demo.yaml --target local_cli
+```
+
 ### With Optimization (Future)
 
 ```bash

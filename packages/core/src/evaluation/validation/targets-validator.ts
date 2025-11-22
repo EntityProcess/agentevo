@@ -13,6 +13,8 @@ function isObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+const CLI_PLACEHOLDERS = new Set(["PROMPT", "GUIDELINES", "EVAL_ID", "ATTEMPT", "ATTACHMENTS", "FILES"]);
+
 /**
  * Validate a targets file (agentv-targets-v2 schema).
  */
@@ -35,10 +37,217 @@ export async function validateTargetsFile(
     return {
       valid: false,
       filePath: absolutePath,
-      fileType: "targets",
-      errors,
-    };
+  fileType: "targets",
+  errors,
+};
+}
+
+function validateCliSettings(
+  settings: unknown,
+  absolutePath: string,
+  location: string,
+  errors: ValidationError[],
+): void {
+  if (!isObject(settings)) {
+    errors.push({
+      severity: "error",
+      filePath: absolutePath,
+      location,
+      message: "CLI provider requires a 'settings' object",
+    });
+    return;
   }
+
+  const commandTemplate = settings["command_template"] ?? settings["commandTemplate"];
+  if (typeof commandTemplate !== "string" || commandTemplate.trim().length === 0) {
+    errors.push({
+      severity: "error",
+      filePath: absolutePath,
+      location: `${location}.commandTemplate`,
+      message: "CLI provider requires 'commandTemplate' as a non-empty string",
+    });
+  } else {
+    recordUnknownPlaceholders(commandTemplate, absolutePath, `${location}.commandTemplate`, errors);
+  }
+
+  const attachmentsFormat = settings["attachments_format"] ?? settings["attachmentsFormat"];
+  if (attachmentsFormat !== undefined && typeof attachmentsFormat !== "string") {
+    errors.push({
+      severity: "error",
+      filePath: absolutePath,
+      location: `${location}.attachmentsFormat`,
+      message: "'attachmentsFormat' must be a string when provided",
+    });
+  }
+
+  const filesFormat = settings["files_format"] ?? settings["filesFormat"];
+  if (filesFormat !== undefined && typeof filesFormat !== "string") {
+    errors.push({
+      severity: "error",
+      filePath: absolutePath,
+      location: `${location}.filesFormat`,
+      message: "'filesFormat' must be a string when provided",
+    });
+  }
+
+  const cwd = settings["cwd"];
+  if (cwd !== undefined && typeof cwd !== "string") {
+    errors.push({
+      severity: "error",
+      filePath: absolutePath,
+      location: `${location}.cwd`,
+      message: "'cwd' must be a string when provided",
+    });
+  }
+
+  const timeoutSeconds = settings["timeout_seconds"] ?? settings["timeoutSeconds"];
+  if (timeoutSeconds !== undefined) {
+    const numericTimeout = Number(timeoutSeconds);
+    if (!Number.isFinite(numericTimeout) || numericTimeout <= 0) {
+      errors.push({
+        severity: "error",
+        filePath: absolutePath,
+        location: `${location}.timeoutSeconds`,
+        message: "'timeoutSeconds' must be a positive number when provided",
+      });
+    }
+  }
+
+  const envOverrides = settings["env"];
+  if (envOverrides !== undefined) {
+    if (!isObject(envOverrides)) {
+      errors.push({
+        severity: "error",
+        filePath: absolutePath,
+        location: `${location}.env`,
+        message: "'env' must be an object with string values",
+      });
+    } else {
+      for (const [key, value] of Object.entries(envOverrides)) {
+        if (typeof value !== "string" || value.trim().length === 0) {
+          errors.push({
+            severity: "error",
+            filePath: absolutePath,
+            location: `${location}.env.${key}`,
+            message: `Environment override '${key}' must be a non-empty string`,
+          });
+        }
+      }
+    }
+  }
+
+  const healthcheck = settings["healthcheck"];
+  if (healthcheck !== undefined) {
+    validateCliHealthcheck(healthcheck, absolutePath, `${location}.healthcheck`, errors);
+  }
+}
+
+function validateCliHealthcheck(
+  healthcheck: unknown,
+  absolutePath: string,
+  location: string,
+  errors: ValidationError[],
+): void {
+  if (!isObject(healthcheck)) {
+    errors.push({
+      severity: "error",
+      filePath: absolutePath,
+      location,
+      message: "'healthcheck' must be an object when provided",
+    });
+    return;
+  }
+
+  const type = healthcheck["type"];
+  if (type !== "http" && type !== "command") {
+    errors.push({
+      severity: "error",
+      filePath: absolutePath,
+      location: `${location}.type`,
+      message: "healthcheck.type must be either 'http' or 'command'",
+    });
+    return;
+  }
+
+  const timeoutSeconds = healthcheck["timeout_seconds"] ?? healthcheck["timeoutSeconds"];
+  if (timeoutSeconds !== undefined) {
+    const numericTimeout = Number(timeoutSeconds);
+    if (!Number.isFinite(numericTimeout) || numericTimeout <= 0) {
+      errors.push({
+        severity: "error",
+        filePath: absolutePath,
+        location: `${location}.timeoutSeconds`,
+        message: "healthcheck.timeoutSeconds must be a positive number when provided",
+      });
+    }
+  }
+
+  if (type === "http") {
+    const url = healthcheck["url"];
+    if (typeof url !== "string" || url.trim().length === 0) {
+      errors.push({
+        severity: "error",
+        filePath: absolutePath,
+        location: `${location}.url`,
+        message: "healthcheck.url must be a non-empty string for http checks",
+      });
+    }
+    return;
+  }
+
+  const commandTemplate = healthcheck["command_template"] ?? healthcheck["commandTemplate"];
+  if (typeof commandTemplate !== "string" || commandTemplate.trim().length === 0) {
+    errors.push({
+      severity: "error",
+      filePath: absolutePath,
+      location: `${location}.commandTemplate`,
+      message: "healthcheck.commandTemplate must be a non-empty string for command checks",
+    });
+  } else {
+    recordUnknownPlaceholders(commandTemplate, absolutePath, `${location}.commandTemplate`, errors);
+  }
+
+  const cwd = healthcheck["cwd"];
+  if (cwd !== undefined && typeof cwd !== "string") {
+    errors.push({
+      severity: "error",
+      filePath: absolutePath,
+      location: `${location}.cwd`,
+      message: "healthcheck.cwd must be a string when provided",
+    });
+  }
+}
+
+function recordUnknownPlaceholders(
+  template: string,
+  absolutePath: string,
+  location: string,
+  errors: ValidationError[],
+): void {
+  const placeholders = extractPlaceholders(template);
+  for (const placeholder of placeholders) {
+    if (!CLI_PLACEHOLDERS.has(placeholder)) {
+      errors.push({
+        severity: "error",
+        filePath: absolutePath,
+        location,
+        message: `Unknown CLI placeholder '{${placeholder}}'. Supported placeholders: ${Array.from(CLI_PLACEHOLDERS).join(", ")}`,
+      });
+    }
+  }
+}
+
+function extractPlaceholders(template: string): string[] {
+  const matches = template.matchAll(/\{([A-Z_]+)\}/g);
+  const result: string[] = [];
+  for (const match of matches) {
+    const placeholder = match[1];
+    if (placeholder) {
+      result.push(placeholder);
+    }
+  }
+  return result;
+}
 
   if (!isObject(parsed)) {
     errors.push({
@@ -116,6 +325,7 @@ export async function validateTargetsFile(
 
     // Required field: provider
     const provider = target["provider"];
+    const providerValue = typeof provider === "string" ? provider.trim().toLowerCase() : undefined;
     if (typeof provider !== "string" || provider.trim().length === 0) {
       errors.push({
         severity: "error",
@@ -135,13 +345,17 @@ export async function validateTargetsFile(
 
     // Optional field: settings (must be object if present)
     const settings = target["settings"];
-    if (settings !== undefined && !isObject(settings)) {
+    if (providerValue !== "cli" && settings !== undefined && !isObject(settings)) {
       errors.push({
         severity: "error",
         filePath: absolutePath,
         location: `${location}.settings`,
         message: "Invalid 'settings' field (must be an object)",
       });
+    }
+
+    if (providerValue === "cli") {
+      validateCliSettings(settings, absolutePath, `${location}.settings`, errors);
     }
 
     // Optional field: judge_target (must be string if present)

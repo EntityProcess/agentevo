@@ -1,4 +1,5 @@
 import { AnthropicProvider, AzureProvider, GeminiProvider } from "./ax.js";
+import { CliProvider } from "./cli.js";
 import { MockProvider } from "./mock.js";
 import type { ResolvedTarget } from "./targets.js";
 import { resolveTargetDefinition } from "./targets.js";
@@ -17,6 +18,7 @@ export type {
 export type {
   AnthropicResolvedConfig,
   AzureResolvedConfig,
+  CliResolvedConfig,
   GeminiResolvedConfig,
   MockResolvedConfig,
   ResolvedTarget,
@@ -35,6 +37,8 @@ export function createProvider(target: ResolvedTarget): Provider {
       return new AnthropicProvider(target.name, target.config);
     case "gemini":
       return new GeminiProvider(target.name, target.config);
+    case "cli":
+      return new CliProvider(target.name, target.config);
     case "mock":
       return new MockProvider(target.name, target.config);
     case "vscode":
