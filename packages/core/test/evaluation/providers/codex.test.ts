@@ -59,15 +59,15 @@ describe("CodexProvider", () => {
       prompt: string;
       args: string[];
     };
-    expect(invocation.args.slice(0, 5)).toEqual([
+    expect(invocation.args.slice(0, 7)).toEqual([
+      "--ask-for-approval",
+      "never",
       "exec",
       "--json",
       "--color",
       "never",
       "--skip-git-repo-check",
     ]);
-    expect(invocation.args).toContain("--ask-for-approval");
-    expect(invocation.args).toContain("never");
     expect(invocation.args).toContain("--profile");
     expect(invocation.args).toContain("default");
     expect(invocation.args).toContain("--model");

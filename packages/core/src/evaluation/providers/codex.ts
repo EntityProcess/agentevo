@@ -137,9 +137,8 @@ export class CodexProvider implements Provider {
   }
 
   private buildCodexArgs(): string[] {
-    const args = ["exec", "--json", "--color", "never", "--skip-git-repo-check"];
-    // Default to 'never' for approval preset in unattended evaluation runs
-    args.push("--ask-for-approval", "never");
+    // Global flags must come before 'exec' subcommand
+    const args = ["--ask-for-approval", "never", "exec", "--json", "--color", "never", "--skip-git-repo-check"];
     if (this.config.args && this.config.args.length > 0) {
       args.push(...this.config.args);
     }
