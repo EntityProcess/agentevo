@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ProviderRequest } from "../../../src/evaluation/providers/types.js";
+import { VSCodeProvider } from "../../../src/evaluation/providers/vscode.js";
 
 const subagentMocks = vi.hoisted(() => ({
   dispatchBatchAgent: vi.fn(),
@@ -18,10 +19,6 @@ vi.mock("node:fs/promises", async () => {
   const actual = await vi.importActual<typeof import("node:fs/promises")>("node:fs/promises");
   return { ...actual, readFile: fsMocks.readFile };
 });
-
-// Import after mocking subagent
-// eslint-disable-next-line import/order
-import { VSCodeProvider } from "../../../src/evaluation/providers/vscode.js";
 
 afterEach(() => {
   vi.clearAllMocks();
