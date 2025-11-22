@@ -91,7 +91,7 @@ The bundled `.agentv/targets.yaml` includes a `local_cli` target that shells out
 To try it locally:
 
 ```bash
-# 1) Ensure Node is available (uses mock-cli.js in this directory)
+# 1) Ensure uv is available (CLI uses mock_cli.py via `uv run`)
 # 2) Set PROJECT_ROOT/LOCAL_AGENT_TOKEN in .env (PROJECT_ROOT should point here)
 # 3) Ensure your judge provider env (azure_base) is set for llm_judge grading
 # 4) Run the demo eval with the CLI provider target

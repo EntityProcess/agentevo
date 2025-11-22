@@ -45,8 +45,8 @@ targets:
     provider: cli
     judge_target: azure_base
     settings:
-      # Passes the fully rendered prompt and any attached files to a local Node script
-      command_template: node ./mock-cli.js "{PROMPT}" {FILES}
+      # Passes the fully rendered prompt and any attached files to a local Python script
+      command_template: uv run ./mock_cli.py --prompt "{PROMPT}" -- {FILES}
       # Attach files with a prefix. {path} and {basename} are both supported.
       attachments_format: --file "{path}"
       files_format: --file "{path}"
@@ -57,4 +57,4 @@ targets:
       timeout_seconds: 30
       healthcheck:
         type: command
-        command_template: node ./mock-cli.js --healthcheck
+        command_template: uv run ./mock_cli.py --healthcheck

@@ -95,6 +95,22 @@ export class CliProvider implements Provider {
     const renderedCommand = renderTemplate(this.config.commandTemplate, templateValues);
 
     const env = this.config.env ? { ...process.env, ...this.config.env } : process.env;
+    if (isVerbose()) {
+      const cwdInfo = this.config.cwd ? ` (cwd ${this.config.cwd})` : "";
+      const timeoutInfo =
+        this.config.timeoutMs && this.config.timeoutMs > 0
+          ? ` [timeout ${this.config.timeoutMs}ms]`
+          : "";
+      const attachmentSummary = summarizeList(templateValues.FILES || templateValues.ATTACHMENTS);
+      console.log(
+        `[cli] ${this.targetName}: ${normalizeDisplayedCommand(renderedCommand)}${cwdInfo}${timeoutInfo}`,
+      );
+      console.log(
+        `[cli] ${this.targetName}: prompt="${summarizeText(request.prompt)}"${
+          attachmentSummary ? ` attachments=${attachmentSummary}` : ""
+        }`,
+      );
+    }
     const result = await this.runCommand(renderedCommand, {
       cwd: this.config.cwd,
       env,
@@ -184,6 +200,18 @@ export class CliProvider implements Provider {
     );
 
     const env = this.config.env ? { ...process.env, ...this.config.env } : process.env;
+    if (isVerbose()) {
+      const cwdInfo = healthcheck.cwd ?? this.config.cwd;
+      const timeoutInfo =
+        timeoutMs && timeoutMs > 0
+          ? ` [timeout ${timeoutMs}ms]`
+          : "";
+      console.log(
+        `[cli] ${this.targetName} healthcheck: ${normalizeDisplayedCommand(renderedCommand)}${
+          cwdInfo ? ` (cwd ${cwdInfo})` : ""
+        }${timeoutInfo}`,
+      );
+    }
     const result = await this.runCommand(renderedCommand, {
       cwd: healthcheck.cwd ?? this.config.cwd,
       env,
@@ -282,4 +310,39 @@ function formatTimeoutSuffix(timeoutMs: number | undefined): string {
   }
   const seconds = Math.ceil(timeoutMs / 1000);
   return ` after ${seconds}s`;
+}
+
+function isVerbose(): boolean {
+  return process.env.AGENTV_VERBOSE === "1";
+}
+
+function summarizeText(text: string, maxLength = 160): string {
+  const singleLine = text.replace(/\s+/g, " ").trim();
+  if (singleLine.length <= maxLength) {
+    return singleLine;
+  }
+  return `${singleLine.slice(0, maxLength - 3)}...`;
+}
+
+function summarizeList(value: string | undefined, maxItems = 4): string {
+  if (!value) return "";
+  const parts = value
+    .split(/\s+/)
+    .map((part) => part.replace(/^["']+|["']+$/g, ""))
+    .filter((part) => part.length > 0);
+  if (parts.length === 0) {
+    return "";
+  }
+  const sliced = parts.slice(0, maxItems);
+  const suffix = parts.length > maxItems ? ` (+${parts.length - maxItems} more)` : "";
+  return sliced.join(", ") + suffix;
+}
+
+function normalizeDisplayedCommand(command: string): string {
+  // Collapse doubled quotes that result from template quoting + shell escaping
+  return command
+    .replace(/\s*\n\s*/g, " ")
+    .replace(/""/g, '"')
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
