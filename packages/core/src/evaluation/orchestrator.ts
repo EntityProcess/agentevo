@@ -2,9 +2,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import pLimit from "p-limit";
-import { spawn } from "node:child_process";
 
-import { LlmJudgeEvaluator, type EvaluationScore, type Evaluator } from "./evaluators.js";
+import { LlmJudgeEvaluator, CodeEvaluator, type EvaluationScore, type Evaluator } from "./evaluators.js";
 import { createProvider } from "./providers/index.js";
 import { resolveTargetDefinition, type ResolvedTarget } from "./providers/targets.js";
 import type {
@@ -685,12 +684,19 @@ async function runEvaluatorList(options: {
       }
 
       if (evaluator.type === "code") {
-        const score = await runCodeEvaluator({
-          config: evaluator,
+        const codeEvaluator = new CodeEvaluator({
+          script: evaluator.script,
+          cwd: evaluator.resolvedCwd ?? evaluator.cwd,
+          agentTimeoutMs,
+        });
+        const score = await codeEvaluator.evaluate({
           evalCase,
           candidate,
+          target,
+          provider,
+          attempt,
           promptInputs,
-          agentTimeoutMs,
+          now,
         });
         scored.push({ score, name: evaluator.name, type: evaluator.type });
         evaluatorResults.push({
@@ -780,68 +786,6 @@ async function runLlmJudgeEvaluator(options: {
   });
 }
 
-async function runCodeEvaluator(options: {
-  readonly config: Extract<NonNullable<EvalCase["evaluators"]>[number], { type: "code" }>;
-  readonly evalCase: EvalCase;
-  readonly candidate: string;
-  readonly promptInputs: { readonly request: string; readonly guidelines: string; readonly systemMessage?: string };
-  readonly agentTimeoutMs?: number;
-}): Promise<EvaluationScore> {
-  const { config, evalCase, candidate, promptInputs, agentTimeoutMs } = options;
-  const scriptCommand = config.script;
-  const cwd = config.resolvedCwd ?? config.cwd;
-
-  const inputPayload = JSON.stringify(
-    {
-      task: evalCase.task,
-      outcome: evalCase.outcome,
-      expected: evalCase.expected_assistant_raw,
-      output: candidate,
-      system_message: promptInputs.systemMessage ?? "",
-      guideline_paths: evalCase.guideline_paths,
-      attachments: evalCase.file_paths,
-      user_segments: evalCase.user_segments,
-    },
-    null,
-    2,
-  );
-
-  try {
-    const stdout = await executeScript(scriptCommand, inputPayload, agentTimeoutMs, cwd);
-    const parsed = parseJsonSafe(stdout);
-    const score = clampScore(typeof parsed?.score === "number" ? parsed.score : 0);
-    const hits = Array.isArray(parsed?.hits) ? parsed.hits.filter(isNonEmptyString) : [];
-    const misses = Array.isArray(parsed?.misses) ? parsed.misses.filter(isNonEmptyString) : [];
-    const reasoning = typeof parsed?.reasoning === "string" ? parsed.reasoning : undefined;
-
-    return {
-      score,
-      hits,
-      misses,
-      expectedAspectCount: hits.length + misses.length || 1,
-      reasoning,
-      evaluatorRawRequest: {
-        script: scriptCommand,
-        ...(cwd ? { cwd } : {}),
-      },
-    };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return {
-      score: 0,
-      hits: [],
-      misses: [`Code evaluator '${config.name}' failed: ${message}`],
-      expectedAspectCount: 1,
-      reasoning: message,
-      evaluatorRawRequest: {
-        script: scriptCommand,
-        ...(cwd ? { cwd } : {}),
-        error: message,
-      },
-    };
-  }
-}
-
 async function resolveCustomPrompt(config: { readonly prompt?: string; readonly promptPath?: string }): Promise<string | undefined> {
   if (config.promptPath) {
     try {
@@ -852,77 +796,6 @@ async function resolveCustomPrompt(config: { readonly prompt?: string; readonly 
     }
   }
   return config.prompt;
-}
-
-async function executeScript(
-  scriptPath: string,
-  input: string,
-  agentTimeoutMs?: number,
-  cwd?: string,
-): Promise<string> {
-  return await new Promise<string>((resolve, reject) => {
-    const child = spawn(scriptPath, {
-      shell: true,
-      cwd,
-    });
-
-    let stdout = "";
-    let stderr = "";
-
-    const timeout = agentTimeoutMs
-      ? setTimeout(() => {
-          child.kill();
-          reject(new Error(`Code evaluator timed out after ${agentTimeoutMs}ms`));
-        }, agentTimeoutMs)
-      : undefined;
-
-    child.stdout?.on("data", (data) => {
-      stdout += data.toString();
-    });
-    child.stderr?.on("data", (data) => {
-      stderr += data.toString();
-    });
-    child.on("error", (error) => {
-      if (timeout !== undefined) {
-        clearTimeout(timeout);
-      }
-      reject(error);
-    });
-    child.on("exit", (code) => {
-      if (timeout !== undefined) {
-        clearTimeout(timeout);
-      }
-      if (code && code !== 0 && stderr.length > 0) {
-        reject(new Error(`Code evaluator exited with code ${code}: ${stderr.trim()}`));
-        return;
-      }
-      resolve(stdout.trim());
-    });
-
-    child.stdin?.write(input);
-    child.stdin?.end();
-  });
-}
-
-function parseJsonSafe(payload: string): Record<string, unknown> | undefined {
-  try {
-    return JSON.parse(payload) as Record<string, unknown>;
-  } catch {
-    return undefined;
-  }
-}
-
-function clampScore(value: number): number {
-  if (Number.isNaN(value) || !Number.isFinite(value)) {
-    return 0;
-  }
-  if (value < 0) {
-    return 0;
-  }
-  if (value > 1) {
-    return 1;
-  }
-  return value;
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -996,7 +869,7 @@ async function invokeProvider(
     readonly signal?: AbortSignal;
   },
 ): Promise<ProviderResponse> {
-  const { evalCase: evalCase, target, promptInputs, attempt, agentTimeoutMs, signal } = options;
+  const { evalCase, promptInputs, attempt, agentTimeoutMs, signal } = options;
 
   const controller = new AbortController();
   const timeout = agentTimeoutMs

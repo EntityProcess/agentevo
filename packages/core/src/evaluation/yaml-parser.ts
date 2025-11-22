@@ -186,6 +186,9 @@ export async function loadEvalCases(
   }
 
   // Support both 'evaluator' (new) and 'grader' (deprecated) fields
+  if (suite.grader && !suite.evaluator) {
+    logWarning("The 'grader' field is deprecated. Please use 'evaluator' instead.");
+  }
   const globalEvaluator = coerceEvaluator(suite.evaluator ?? suite.grader, "global") ?? "llm_judge";
   const results: EvalCase[] = [];
 
@@ -342,6 +345,9 @@ export async function loadEvalCases(
       .join(" ");
 
     // Support both 'evaluator' (new) and 'grader' (deprecated) fields at test case level
+    if (evalcase.grader && !evalcase.evaluator) {
+      logWarning(`Test case '${id}': The 'grader' field is deprecated. Please use 'evaluator' instead.`);
+    }
     const testCaseEvaluatorKind = coerceEvaluator(evalcase.evaluator ?? evalcase.grader, id) ?? globalEvaluator;
     const evaluators = await parseEvaluators(evalcase, searchRoots, id ?? "unknown");
 

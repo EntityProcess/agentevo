@@ -48,14 +48,14 @@
   - Return type: `Promise<EvaluationScore>`
 
 ### 2.3 Create CodeEvaluator Class
-- [ ] Extract `runCodeEvaluator()` logic into new `CodeEvaluator` class in `evaluators.ts`
+- [x] Extract `runCodeEvaluator()` logic into new `CodeEvaluator` class in `evaluators.ts`
   - Create `CodeEvaluatorOptions` interface
   - Implement `Evaluator` interface
   - Set `kind = "code"`
   - Implement `evaluate()` method with current `runCodeEvaluator()` logic
   - Move helper functions (`executeScript`, `parseJsonSafe`, `clampScore`) to class or utils
-- [ ] Remove standalone `runCodeEvaluator()` function from `orchestrator.ts`
-- [ ] Export `CodeEvaluator` from `packages/core/src/index.ts`
+- [x] Remove standalone `runCodeEvaluator()` function from `orchestrator.ts`
+- [x] Export `CodeEvaluator` from `packages/core/src/index.ts`
 
 ## Phase 3: Orchestrator Refactoring
 
@@ -91,7 +91,7 @@
   - Update all internal variable names
 
 ### 3.4 Instantiate CodeEvaluator
-- [ ] Update `runEvaluatorList()` to instantiate `CodeEvaluator` class
+- [x] Update `runEvaluatorList()` to instantiate `CodeEvaluator` class
   - Replace standalone function call with class instantiation
   - Pass options from `EvaluatorConfig`
   - Call `evaluate()` method
@@ -133,22 +133,22 @@
 - [x] Update `packages/core/test/evaluation/orchestrator-batch.test.ts`
   - Same updates as orchestrator.test.ts
 
-- [ ] Update `packages/core/test/evaluation/yaml-parser.test.ts`
+- [x] Update `packages/core/test/evaluation/yaml-parser.test.ts`
   - Test both `grader` and `evaluator` field parsing
   - Verify deprecation warning for `grader` field
   - Test that `evaluator` takes precedence
 
 ### 5.2 Integration Test Updates
-- [ ] Update any integration tests using old API
-- [ ] Add tests for backward compatibility
+- [x] Update any integration tests using old API
+- [x] Add tests for backward compatibility
   - Legacy `grader` field still works
   - Legacy `graders` parameter still works
   - Deprecation warnings appear
 
 ### 5.3 Add New Tests
-- [ ] Test `CodeEvaluator` class in isolation
-- [ ] Test `LlmJudgeEvaluator` with custom prompts
-- [ ] Test evaluator registry building with overrides
+- [x] Test `CodeEvaluator` class in isolation
+- [x] Test `LlmJudgeEvaluator` with custom prompts
+- [x] Test evaluator registry building with overrides
 
 ## Phase 6: Documentation Updates
 
@@ -204,30 +204,30 @@
 ## Phase 9: Final Verification
 
 ### 9.1 Type Checking
-- [ ] Run `pnpm typecheck` in all packages
-- [ ] Fix any type errors
+- [x] Run `pnpm typecheck` in all packages
+- [x] Fix any type errors
 
 ### 9.2 Linting
-- [ ] Run `pnpm lint` in all packages
-- [ ] Fix any linting issues
+- [x] Run `pnpm lint` in all packages
+- [x] Fix any linting issues
 
 ### 9.3 Build
-- [ ] Run `pnpm build` in all packages
-- [ ] Verify no build errors
+- [x] Run `pnpm build` in all packages
+- [x] Verify no build errors
 
 ### 9.4 Test Suite
-- [ ] Run `pnpm test` in all packages
-- [ ] Verify all tests pass
-- [ ] Check test coverage hasn't decreased
+- [x] Run `pnpm test` in all packages
+- [x] Verify all tests pass
+- [x] Check test coverage hasn't decreased
 
 ### 9.5 Search for Remnants
-- [ ] Global search for "grader" (case-insensitive)
+- [x] Global search for "grader" (case-insensitive)
   - Exclude: `grader_raw_request` (deprecated field)
   - Exclude: "upgrade" and similar words
   - Verify all remaining uses are intentional (e.g., in migration docs)
-- [ ] Global search for `Grader` (PascalCase)
+- [x] Global search for `Grader` (PascalCase)
   - Verify no type or class references remain
-- [ ] Global search for `grading.ts`
+- [x] Global search for `grading.ts`
   - Verify file is renamed to `evaluators.ts` everywhere
 
 ## Phase 10: Release Preparation

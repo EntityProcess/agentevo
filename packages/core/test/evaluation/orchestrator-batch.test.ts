@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { runEvaluation } from "../../src/evaluation/orchestrator.js";
-import type { Provider, ProviderRequest, ProviderResponse } from "../../src/evaluation/providers/types.js";
-import type { ResolvedTarget } from "../../src/evaluation/providers/targets.js";
 import type { Evaluator } from "../../src/evaluation/evaluators.js";
+import { runEvaluation } from "../../src/evaluation/orchestrator.js";
+import type { ResolvedTarget } from "../../src/evaluation/providers/targets.js";
+import type { Provider, ProviderRequest, ProviderResponse } from "../../src/evaluation/providers/types.js";
 import type { EvalCase } from "../../src/evaluation/types.js";
 import * as yamlParser from "../../src/evaluation/yaml-parser.js";
 
