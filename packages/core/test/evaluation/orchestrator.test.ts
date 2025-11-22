@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { QualityGrader } from "../../src/evaluation/grading.js";
+import { LlmJudgeEvaluator } from "../../src/evaluation/evaluators.js";
 import { runEvalCase, type EvaluationCache } from "../../src/evaluation/orchestrator.js";
 import type { ResolvedTarget } from "../../src/evaluation/providers/targets.js";
 import type { Provider, ProviderRequest, ProviderResponse } from "../../src/evaluation/providers/types.js";
@@ -75,10 +75,10 @@ const baseTarget: ResolvedTarget = {
   config: { response: "{}" },
 };
 
-const graderRegistry = {
+const evaluatorRegistry = {
   llm_judge: {
     kind: "llm_judge",
-    async grade() {
+    async evaluate() {
       return {
         score: 0.8,
         hits: ["hit"],
@@ -103,7 +103,7 @@ describe("runTestCase", () => {
       evalCase: baseTestCase,
       provider,
       target: baseTarget,
-      graders: graderRegistry,
+      evaluators: evaluatorRegistry,
       now: () => new Date("2024-01-01T00:00:00Z"),
     });
 
@@ -132,7 +132,7 @@ describe("runTestCase", () => {
       evalCase: baseTestCase,
       provider,
       target: baseTarget,
-      graders: graderRegistry,
+      evaluators: evaluatorRegistry,
       cache,
       useCache: true,
     });
@@ -143,7 +143,7 @@ describe("runTestCase", () => {
       evalCase: baseTestCase,
       provider,
       target: baseTarget,
-      graders: graderRegistry,
+      evaluators: evaluatorRegistry,
       cache,
       useCache: true,
     });
@@ -162,7 +162,7 @@ describe("runTestCase", () => {
       evalCase: baseTestCase,
       provider,
       target: baseTarget,
-      graders: graderRegistry,
+      evaluators: evaluatorRegistry,
       maxRetries: 1,
     });
 
@@ -178,7 +178,7 @@ describe("runTestCase", () => {
       evalCase: baseTestCase,
       provider,
       target: baseTarget,
-      graders: graderRegistry,
+      evaluators: evaluatorRegistry,
     });
 
     expect(result.score).toBe(0);
@@ -195,7 +195,7 @@ describe("runTestCase", () => {
       evalCase: baseTestCase,
       provider,
       target: baseTarget,
-      graders: graderRegistry,
+      evaluators: evaluatorRegistry,
       promptDumpDir: directory,
     });
 
@@ -228,8 +228,8 @@ describe("runTestCase", () => {
       reasoning: "ok",
     });
 
-    const graderRegistry = {
-      llm_judge: new QualityGrader({
+    const evaluatorRegistry = {
+      llm_judge: new LlmJudgeEvaluator({
         resolveJudgeProvider: async () => judgeProvider,
       }),
     };
@@ -241,11 +241,11 @@ describe("runTestCase", () => {
       },
       provider,
       target: baseTarget,
-      graders: graderRegistry,
+      evaluators: evaluatorRegistry,
       now: () => new Date("2024-01-01T00:00:00Z"),
     });
 
     expect(judgeProvider.lastRequest?.metadata?.systemPrompt).toContain("CUSTOM PROMPT CONTENT");
-    expect(result.evaluator_results?.[0]?.grader_raw_request?.systemPrompt).toContain("CUSTOM PROMPT CONTENT");
+    expect(result.evaluator_results?.[0]?.evaluator_raw_request?.systemPrompt).toContain("CUSTOM PROMPT CONTENT");
   });
 });

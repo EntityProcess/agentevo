@@ -8,13 +8,13 @@ import { parse } from "yaml";
 import { buildDirectoryChain, buildSearchRoots, resolveFileReference } from "./file-utils.js";
 import type {
   EvaluatorConfig,
-  GraderKind,
+  EvaluatorKind,
   JsonObject,
   JsonValue,
   EvalCase,
   TestMessage,
 } from "./types.js";
-import { isEvaluatorKind, isGraderKind, isJsonObject, isTestMessage } from "./types.js";
+import { isEvaluatorKind, isJsonObject, isTestMessage } from "./types.js";
 
 const CODE_BLOCK_PATTERN = /```[\s\S]*?```/g;
 const ANSI_YELLOW = "\u001b[33m";
@@ -124,7 +124,6 @@ type LoadOptions = {
 
 type RawTestSuite = JsonObject & {
   readonly $schema?: JsonValue;
-  readonly grader?: JsonValue;
   readonly evalcases?: JsonValue;
   readonly target?: JsonValue;
 };
@@ -135,7 +134,6 @@ type RawEvalCase = JsonObject & {
   readonly outcome?: JsonValue;
   readonly input_messages?: JsonValue;
   readonly expected_messages?: JsonValue;
-  readonly grader?: JsonValue;
   readonly execution?: JsonValue;
   readonly evaluators?: JsonValue;
 };
@@ -185,7 +183,7 @@ export async function loadEvalCases(
     throw new Error(`Invalid test file format: ${evalFilePath} - missing 'evalcases' field`);
   }
 
-  const globalGrader = coerceGrader(suite.grader) ?? "llm_judge";
+  const globalEvaluator = coerceEvaluator(suite.evaluator, "global") ?? "llm_judge";
   const results: EvalCase[] = [];
 
   for (const rawEvalcase of rawTestcases) {
@@ -340,7 +338,7 @@ export async function loadEvalCases(
       .filter((part) => part.length > 0)
       .join(" ");
 
-    const testCaseGrader = coerceGrader(evalcase.grader) ?? globalGrader;
+    const testCaseEvaluatorKind = coerceEvaluator(evalcase.evaluator, id) ?? globalEvaluator;
     const evaluators = await parseEvaluators(evalcase, searchRoots, id ?? "unknown");
 
     // Extract file paths from user_segments (non-guideline files)
@@ -369,7 +367,7 @@ export async function loadEvalCases(
       file_paths: allFilePaths,
       code_snippets: codeSnippets,
       outcome,
-      grader: testCaseGrader,
+      evaluator: testCaseEvaluatorKind,
       evaluators,
     };
 
@@ -673,14 +671,14 @@ async function parseEvaluators(
   return evaluators.length > 0 ? evaluators : undefined;
 }
 
-function coerceGrader(candidate: JsonValue | undefined): GraderKind | undefined {
+function coerceEvaluator(candidate: JsonValue | undefined, contextId: string): EvaluatorKind | undefined {
   if (typeof candidate !== "string") {
     return undefined;
   }
-  if (isGraderKind(candidate)) {
+  if (isEvaluatorKind(candidate)) {
     return candidate;
   }
-  logWarning(`Unknown grader '${candidate}', falling back to default`);
+  logWarning(`Unknown evaluator '${candidate}' in ${contextId}, falling back to default`);
   return undefined;
 }
 

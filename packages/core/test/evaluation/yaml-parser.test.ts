@@ -113,7 +113,7 @@ guideline_patterns:
 
     // Create eval file
     const evalContent = `$schema: agentv-eval-v2
-grader: llm_judge
+evaluator: llm_judge
 evalcases:
   - id: test-custom-patterns
     outcome: Success
@@ -158,7 +158,7 @@ evalcases:
 
     // Create eval file
     const evalContent = `$schema: agentv-eval-v2
-grader: llm_judge
+evaluator: llm_judge
 evalcases:
   - id: test-default-patterns
     outcome: Success
@@ -217,7 +217,7 @@ guideline_patterns:
 
     // Create eval file in nested directory
     const evalContent = `$schema: agentv-eval-v2
-grader: llm_judge
+evaluator: llm_judge
 evalcases:
   - id: test-walk-up
     outcome: Success
@@ -274,7 +274,7 @@ guideline_patterns:
 
     // Create eval file
     const evalContent = `$schema: agentv-eval-v2
-grader: llm_judge
+evaluator: llm_judge
 evalcases:
   - id: test-cross-platform
     outcome: Success

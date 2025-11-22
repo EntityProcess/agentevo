@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import type { EnvLookup, TargetDefinition } from "./types.js";
 
-const CLI_PLACEHOLDERS = new Set(["PROMPT", "GUIDELINES", "EVAL_ID", "ATTEMPT", "ATTACHMENTS", "FILES"]);
+const CLI_PLACEHOLDERS = new Set(["PROMPT", "GUIDELINES", "EVAL_ID", "ATTEMPT", "FILES"]);
 
 export interface AzureResolvedConfig {
   readonly resourceName: string;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { QualityGrader } from "../../src/evaluation/grading.js";
+import { LlmJudgeEvaluator } from "../../src/evaluation/evaluators.js";
 import type { ResolvedTarget } from "../../src/evaluation/providers/targets.js";
 import type { Provider, ProviderRequest, ProviderResponse } from "../../src/evaluation/providers/types.js";
 import type { EvalCase, JsonObject } from "../../src/evaluation/types.js";
@@ -26,7 +26,7 @@ const baseTestCase: EvalCase = {
   file_paths: [],
   code_snippets: [],
   outcome: "Logging improvements applied",
-  grader: "llm_judge",
+  evaluator: "llm_judge",
 };
 
 const baseTarget: ResolvedTarget = {
@@ -35,8 +35,8 @@ const baseTarget: ResolvedTarget = {
   config: { response: "{}" },
 };
 
-describe("QualityGrader", () => {
-  it("parses JSON response and returns grade", async () => {
+describe("LlmJudgeEvaluator", () => {
+  it("parses JSON response and returns evaluation score", async () => {
     const judgeProvider = new StubProvider({
       text: JSON.stringify({
         score: 0.8,
@@ -46,12 +46,12 @@ describe("QualityGrader", () => {
       }),
     });
 
-    const grader = new QualityGrader({
+    const evaluator = new LlmJudgeEvaluator({
       resolveJudgeProvider: async () => judgeProvider,
     });
 
-    const result = await grader.grade({
-      evalCase: { ...baseTestCase, grader: "llm_judge" },
+    const result = await evaluator.evaluate({
+      evalCase: { ...baseTestCase, evaluator: "llm_judge" },
       candidate: "Answer",
       target: baseTarget,
       provider: judgeProvider,
@@ -64,7 +64,7 @@ describe("QualityGrader", () => {
     expect(result.hits).toContain("Captured logging requirement");
     expect(result.misses).toContain("Did not mention tests");
     expect(result.reasoning).toBe("Solid coverage with minor omissions");
-    expect(result.graderRawRequest).toBeDefined();
+    expect(result.evaluatorRawRequest).toBeDefined();
   });
 
   it("parses JSON from markdown code block", async () => {
@@ -77,12 +77,12 @@ describe("QualityGrader", () => {
       })}\n\`\`\``,
     });
 
-    const grader = new QualityGrader({
+    const evaluator = new LlmJudgeEvaluator({
       resolveJudgeProvider: async () => judgeProvider,
     });
 
-    const result = await grader.grade({
-      evalCase: { ...baseTestCase, grader: "llm_judge" },
+    const result = await evaluator.evaluate({
+      evalCase: { ...baseTestCase, evaluator: "llm_judge" },
       candidate: "Answer",
       target: baseTarget,
       provider: judgeProvider,
@@ -106,12 +106,12 @@ describe("QualityGrader", () => {
       }),
     });
 
-    const grader = new QualityGrader({
+    const evaluator = new LlmJudgeEvaluator({
       resolveJudgeProvider: async () => judgeProvider,
     });
 
-    const result = await grader.grade({
-      evalCase: { ...baseTestCase, grader: "llm_judge" },
+    const result = await evaluator.evaluate({
+      evalCase: { ...baseTestCase, evaluator: "llm_judge" },
       candidate: "Answer",
       target: baseTarget,
       provider: judgeProvider,
@@ -136,12 +136,12 @@ describe("QualityGrader", () => {
       }),
     });
 
-    const grader = new QualityGrader({
+    const evaluator = new LlmJudgeEvaluator({
       resolveJudgeProvider: async () => judgeProvider,
     });
 
-    const result = await grader.grade({
-      evalCase: { ...baseTestCase, grader: "llm_judge" },
+    const result = await evaluator.evaluate({
+      evalCase: { ...baseTestCase, evaluator: "llm_judge" },
       candidate: "Answer",
       target: baseTarget,
       provider: judgeProvider,
@@ -180,13 +180,13 @@ describe("QualityGrader", () => {
       }),
     });
 
-    const grader = new QualityGrader({
+    const evaluator = new LlmJudgeEvaluator({
       resolveJudgeProvider: async () => judgeProvider,
       customPrompt,
     });
 
-    const result = await grader.grade({
-      evalCase: { ...baseTestCase, grader: "llm_judge" },
+    const result = await evaluator.evaluate({
+      evalCase: { ...baseTestCase, evaluator: "llm_judge" },
       candidate: "Answer",
       target: baseTarget,
       provider: judgeProvider,
@@ -197,7 +197,7 @@ describe("QualityGrader", () => {
 
     expect(result.score).toBeCloseTo(0.7);
     expect(judgeProvider.metadata?.systemPrompt).toBe(customPrompt);
-    expect(result.graderRawRequest?.systemPrompt).toBe(customPrompt);
+    expect(result.evaluatorRawRequest?.systemPrompt).toBe(customPrompt);
   });
 
   it("rejects JSON with invalid hits/misses types", async () => {
@@ -210,12 +210,12 @@ describe("QualityGrader", () => {
       }),
     });
 
-    const grader = new QualityGrader({
+    const evaluator = new LlmJudgeEvaluator({
       resolveJudgeProvider: async () => judgeProvider,
     });
 
-    const result = await grader.grade({
-      evalCase: { ...baseTestCase, grader: "llm_judge" },
+    const result = await evaluator.evaluate({
+      evalCase: { ...baseTestCase, evaluator: "llm_judge" },
       candidate: "Answer",
       target: baseTarget,
       provider: judgeProvider,
@@ -232,12 +232,12 @@ describe("QualityGrader", () => {
 
   it("tolerates non-JSON output by falling back to defaults", async () => {
     const judgeProvider = new StubProvider({ text: "Final score: 0.5" });
-    const grader = new QualityGrader({
+    const evaluator = new LlmJudgeEvaluator({
       resolveJudgeProvider: async () => judgeProvider,
     });
 
-    const result = await grader.grade({
-      evalCase: { ...baseTestCase, grader: "llm_judge" },
+    const result = await evaluator.evaluate({
+      evalCase: { ...baseTestCase, evaluator: "llm_judge" },
       candidate: "Answer",
       target: baseTarget,
       provider: judgeProvider,

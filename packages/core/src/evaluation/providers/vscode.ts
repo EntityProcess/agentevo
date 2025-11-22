@@ -1,13 +1,10 @@
 import { readFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import path from "node:path";
 import { dispatchAgentSession, dispatchBatchAgent, getSubagentRoot, provisionSubagents } from "subagent";
 
-import { isGuidelineFile } from "../yaml-parser.js";
 import type { VSCodeResolvedConfig } from "./targets.js";
 import type { Provider, ProviderRequest, ProviderResponse } from "./types.js";
-
-const PROMPT_FILE_PREFIX = "agentv-vscode-";
+import { isGuidelineFile } from "../yaml-parser.js";
 
 export class VSCodeProvider implements Provider {
   readonly id: string;
@@ -252,7 +249,7 @@ function pathToFileUri(filePath: string): string {
   return `file://${normalizedPath}`;
 }
 
-function composeUserQuery(request: ProviderRequest): string {
+function _composeUserQuery(request: ProviderRequest): string {
   // For VS Code, guidelines are handled via file attachments
   // Do NOT include guideline content in the user query
   return request.prompt.trim();

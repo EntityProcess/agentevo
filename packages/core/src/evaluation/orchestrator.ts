@@ -2,9 +2,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import pLimit from "p-limit";
-import { spawn } from "node:child_process";
 
-import { QualityGrader, type GradeResult, type Grader } from "./grading.js";
+import { LlmJudgeEvaluator, CodeEvaluator, type EvaluationScore, type Evaluator } from "./evaluators.js";
 import { createProvider } from "./providers/index.js";
 import { resolveTargetDefinition, type ResolvedTarget } from "./providers/targets.js";
 import type {
@@ -28,7 +27,7 @@ export interface RunEvalCaseOptions {
   readonly evalCase: EvalCase;
   readonly provider: Provider;
   readonly target: ResolvedTarget;
-  readonly graders: Partial<Record<string, Grader>> & { readonly llm_judge: Grader };
+  readonly evaluators: Partial<Record<string, Evaluator>> & { readonly llm_judge: Evaluator };
   readonly now?: () => Date;
   readonly maxRetries?: number;
   readonly agentTimeoutMs?: number;
@@ -55,7 +54,7 @@ export interface RunEvaluationOptions {
   readonly targets?: readonly TargetDefinition[];
   readonly env?: EnvLookup;
   readonly providerFactory?: (target: ResolvedTarget) => Provider;
-  readonly graders?: Partial<Record<string, Grader>>;
+  readonly evaluators?: Partial<Record<string, Evaluator>>;
   readonly maxRetries?: number;
   readonly agentTimeoutMs?: number;
   readonly promptDumpDir?: string;
@@ -77,7 +76,7 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
     targets,
     env,
     providerFactory,
-    graders,
+    evaluators,
     maxRetries,
     agentTimeoutMs,
     promptDumpDir,
@@ -145,7 +144,7 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
     return getOrCreateProvider(resolvedJudge);
   };
 
-  const graderRegistry = buildGraderRegistry(graders, resolveJudgeProvider);
+  const evaluatorRegistry = buildEvaluatorRegistry(evaluators, resolveJudgeProvider);
 
   const primaryProvider = getOrCreateProvider(target);
   const providerSupportsBatch =
@@ -176,7 +175,7 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
         evalCases: filteredEvalCases,
         provider: primaryProvider,
         target,
-        graderRegistry,
+        evaluatorRegistry,
         promptDumpDir,
         nowFn: now ?? (() => new Date()),
         onProgress,
@@ -223,7 +222,7 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
           evalCase: evalCase,
           provider: primaryProvider,
           target,
-          graders: graderRegistry,
+          evaluators: evaluatorRegistry,
           maxRetries,
           agentTimeoutMs,
           promptDumpDir,
@@ -296,7 +295,7 @@ async function runBatchEvaluation(options: {
   readonly evalCases: readonly EvalCase[];
   readonly provider: Provider;
   readonly target: ResolvedTarget;
-  readonly graderRegistry: Partial<Record<string, Grader>> & { readonly llm_judge: Grader };
+  readonly evaluatorRegistry: Partial<Record<string, Evaluator>> & { readonly llm_judge: Evaluator };
   readonly promptDumpDir?: string;
   readonly nowFn: () => Date;
   readonly onProgress?: (event: ProgressEvent) => MaybePromise<void>;
@@ -309,7 +308,7 @@ async function runBatchEvaluation(options: {
     evalCases,
     provider,
     target,
-    graderRegistry,
+    evaluatorRegistry,
     promptDumpDir,
     nowFn,
     onProgress,
@@ -377,7 +376,7 @@ async function runBatchEvaluation(options: {
         candidate: providerResponse.text ?? "",
         target,
         provider,
-        graders: graderRegistry,
+        evaluators: evaluatorRegistry,
         promptInputs,
         nowFn,
         attempt: 0,
@@ -426,7 +425,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     evalCase: evalCase,
     provider,
     target,
-    graders,
+    evaluators,
     now,
     maxRetries,
     agentTimeoutMs,
@@ -495,7 +494,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       candidate: providerResponse.text ?? "",
       target,
       provider,
-      graders,
+      evaluators,
       promptInputs,
       nowFn,
       attempt,
@@ -512,7 +511,7 @@ async function evaluateCandidate(options: {
   readonly candidate: string;
   readonly target: ResolvedTarget;
   readonly provider: Provider;
-  readonly graders: Partial<Record<string, Grader>> & { readonly llm_judge: Grader };
+  readonly evaluators: Partial<Record<string, Evaluator>> & { readonly llm_judge: Evaluator };
   readonly promptInputs: { readonly request: string; readonly guidelines: string; readonly systemMessage?: string };
   readonly nowFn: () => Date;
   readonly attempt: number;
@@ -524,7 +523,7 @@ async function evaluateCandidate(options: {
     candidate,
     target,
     provider,
-    graders,
+    evaluators,
     promptInputs,
     nowFn,
     attempt,
@@ -533,12 +532,12 @@ async function evaluateCandidate(options: {
   } = options;
 
   const gradeTimestamp = nowFn();
-  const { grade, evaluatorResults } = await runGradersForCase({
+  const { score, evaluatorResults } = await runEvaluatorsForCase({
     evalCase,
     candidate,
     target,
     provider,
-    graders,
+    evaluators,
     attempt,
     promptInputs,
     now: gradeTimestamp,
@@ -557,34 +556,34 @@ async function evaluateCandidate(options: {
   return {
     eval_id: evalCase.id,
     conversation_id: evalCase.conversation_id,
-    score: grade.score,
-    hits: grade.hits,
-    misses: grade.misses,
+    score: score.score,
+    hits: score.hits,
+    misses: score.misses,
     model_answer: candidate,
-    expected_aspect_count: grade.expectedAspectCount,
+    expected_aspect_count: score.expectedAspectCount,
     target: target.name,
     timestamp: completedAt.toISOString(),
-    reasoning: grade.reasoning,
-    raw_aspects: grade.rawAspects,
+    reasoning: score.reasoning,
+    raw_aspects: score.rawAspects,
     raw_request: rawRequest,
-    grader_raw_request: evaluatorResults ? undefined : grade.graderRawRequest,
+    evaluator_raw_request: evaluatorResults ? undefined : score.evaluatorRawRequest,
     evaluator_results: evaluatorResults,
   };
 }
 
-async function runGradersForCase(options: {
+async function runEvaluatorsForCase(options: {
   readonly evalCase: EvalCase;
   readonly candidate: string;
   readonly target: ResolvedTarget;
   readonly provider: Provider;
-  readonly graders: Partial<Record<string, Grader>> & { readonly llm_judge: Grader };
+  readonly evaluators: Partial<Record<string, Evaluator>> & { readonly llm_judge: Evaluator };
   readonly attempt: number;
   readonly promptInputs: { readonly request: string; readonly guidelines: string; readonly systemMessage?: string };
   readonly now: Date;
   readonly judgeProvider?: Provider;
   readonly agentTimeoutMs?: number;
-}): Promise<{ grade: GradeResult; evaluatorResults?: EvaluatorResult[] }> {
-  const { evalCase, candidate, target, provider, graders, attempt, promptInputs, now, judgeProvider, agentTimeoutMs } =
+}): Promise<{ score: EvaluationScore; evaluatorResults?: EvaluatorResult[] }> {
+  const { evalCase, candidate, target, provider, evaluators, attempt, promptInputs, now, judgeProvider, agentTimeoutMs } =
     options;
 
   if (evalCase.evaluators && evalCase.evaluators.length > 0) {
@@ -594,7 +593,7 @@ async function runGradersForCase(options: {
       candidate,
       target,
       provider,
-      graders,
+      evaluatorRegistry: evaluators,
       attempt,
       promptInputs,
       now,
@@ -603,13 +602,13 @@ async function runGradersForCase(options: {
     });
   }
 
-  const graderKind = evalCase.grader ?? "llm_judge";
-  const activeGrader = graders[graderKind] ?? graders.llm_judge;
-  if (!activeGrader) {
-    throw new Error(`No grader registered for kind '${graderKind}'`);
+  const evaluatorKind = evalCase.evaluator ?? "llm_judge";
+  const activeEvaluator = evaluators[evaluatorKind] ?? evaluators.llm_judge;
+  if (!activeEvaluator) {
+    throw new Error(`No evaluator registered for kind '${evaluatorKind}'`);
   }
 
-  const grade = await activeGrader.grade({
+  const score = await activeEvaluator.evaluate({
     evalCase,
     candidate,
     target,
@@ -620,7 +619,7 @@ async function runGradersForCase(options: {
     judgeProvider,
   });
 
-  return { grade };
+  return { score };
 }
 
 async function runEvaluatorList(options: {
@@ -629,20 +628,20 @@ async function runEvaluatorList(options: {
   readonly candidate: string;
   readonly target: ResolvedTarget;
   readonly provider: Provider;
-  readonly graders: Partial<Record<string, Grader>> & { readonly llm_judge: Grader };
+  readonly evaluatorRegistry: Partial<Record<string, Evaluator>> & { readonly llm_judge: Evaluator };
   readonly attempt: number;
   readonly promptInputs: { readonly request: string; readonly guidelines: string; readonly systemMessage?: string };
   readonly now: Date;
   readonly judgeProvider?: Provider;
   readonly agentTimeoutMs?: number;
-}): Promise<{ grade: GradeResult; evaluatorResults: EvaluatorResult[] }> {
+}): Promise<{ score: EvaluationScore; evaluatorResults: EvaluatorResult[] }> {
   const {
     evalCase,
     evaluators,
     candidate,
     target,
     provider,
-    graders,
+    evaluatorRegistry,
     attempt,
     promptInputs,
     now,
@@ -650,67 +649,74 @@ async function runEvaluatorList(options: {
     agentTimeoutMs,
   } = options;
 
-  const graded: Array<{ readonly grade: GradeResult; readonly name: string; readonly type: string }> = [];
+  const scored: Array<{ readonly score: EvaluationScore; readonly name: string; readonly type: string }> = [];
   const evaluatorResults: EvaluatorResult[] = [];
 
   for (const evaluator of evaluators ?? []) {
     try {
       if (evaluator.type === "llm_judge") {
-        const grade = await runLlmJudgeEvaluator({
+        const score = await runLlmJudgeEvaluator({
           config: evaluator,
           evalCase,
           candidate,
           target,
           provider,
-          graders,
+          evaluatorRegistry,
           attempt,
           promptInputs,
           now,
           judgeProvider,
         });
-        graded.push({ grade, name: evaluator.name, type: evaluator.type });
+        scored.push({ score, name: evaluator.name, type: evaluator.type });
         evaluatorResults.push({
           name: evaluator.name,
           type: evaluator.type,
-          score: grade.score,
-          hits: grade.hits,
-          misses: grade.misses,
-          reasoning: grade.reasoning,
-          grader_raw_request: grade.graderRawRequest,
+          score: score.score,
+          hits: score.hits,
+          misses: score.misses,
+          reasoning: score.reasoning,
+          evaluator_raw_request: score.evaluatorRawRequest,
         });
         continue;
       }
 
       if (evaluator.type === "code") {
-        const grade = await runCodeEvaluator({
-          config: evaluator,
-          evalCase,
-          candidate,
-          promptInputs,
+        const codeEvaluator = new CodeEvaluator({
+          script: evaluator.script,
+          cwd: evaluator.resolvedCwd ?? evaluator.cwd,
           agentTimeoutMs,
         });
-        graded.push({ grade, name: evaluator.name, type: evaluator.type });
+        const score = await codeEvaluator.evaluate({
+          evalCase,
+          candidate,
+          target,
+          provider,
+          attempt,
+          promptInputs,
+          now,
+        });
+        scored.push({ score, name: evaluator.name, type: evaluator.type });
         evaluatorResults.push({
           name: evaluator.name,
           type: evaluator.type,
-          score: grade.score,
-          hits: grade.hits,
-          misses: grade.misses,
-          reasoning: grade.reasoning,
-          grader_raw_request: grade.graderRawRequest,
+          score: score.score,
+          hits: score.hits,
+          misses: score.misses,
+          reasoning: score.reasoning,
+          evaluator_raw_request: score.evaluatorRawRequest,
         });
         continue;
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      const fallbackGrade: GradeResult = {
+      const fallbackScore: EvaluationScore = {
         score: 0,
         hits: [],
         misses: [`Evaluator '${evaluator.name}' failed: ${message}`],
         expectedAspectCount: 1,
         reasoning: message,
       };
-      graded.push({ grade: fallbackGrade, name: evaluator.name ?? "unknown", type: evaluator.type ?? "unknown" });
+      scored.push({ score: fallbackScore, name: evaluator.name ?? "unknown", type: evaluator.type ?? "unknown" });
       evaluatorResults.push({
         name: evaluator.name ?? "unknown",
         type: evaluator.type ?? "unknown",
@@ -723,17 +729,17 @@ async function runEvaluatorList(options: {
   }
 
   const aggregateScore =
-    graded.length > 0 ? graded.reduce((total, entry) => total + entry.grade.score, 0) / graded.length : 0;
-  const hits = graded.flatMap((entry) => entry.grade.hits);
-  const misses = graded.flatMap((entry) => entry.grade.misses);
-  const expectedAspectCount = graded.reduce((total, entry) => total + (entry.grade.expectedAspectCount ?? 0), 0);
-  const rawAspects = graded.flatMap((entry) => entry.grade.rawAspects ?? []);
-  const reasoningParts = graded
-    .map((entry) => (entry.grade.reasoning ? `${entry.name}: ${entry.grade.reasoning}` : undefined))
+    scored.length > 0 ? scored.reduce((total, entry) => total + entry.score.score, 0) / scored.length : 0;
+  const hits = scored.flatMap((entry) => entry.score.hits);
+  const misses = scored.flatMap((entry) => entry.score.misses);
+  const expectedAspectCount = scored.reduce((total, entry) => total + (entry.score.expectedAspectCount ?? 0), 0);
+  const rawAspects = scored.flatMap((entry) => entry.score.rawAspects ?? []);
+  const reasoningParts = scored
+    .map((entry) => (entry.score.reasoning ? `${entry.name}: ${entry.score.reasoning}` : undefined))
     .filter(isNonEmptyString);
   const reasoning = reasoningParts.length > 0 ? reasoningParts.join(" | ") : undefined;
 
-  const grade: GradeResult = {
+  const score: EvaluationScore = {
     score: aggregateScore,
     hits,
     misses,
@@ -742,7 +748,7 @@ async function runEvaluatorList(options: {
     rawAspects: rawAspects.length > 0 ? rawAspects : undefined,
   };
 
-  return { grade, evaluatorResults };
+  return { score, evaluatorResults };
 }
 
 async function runLlmJudgeEvaluator(options: {
@@ -751,17 +757,17 @@ async function runLlmJudgeEvaluator(options: {
   readonly candidate: string;
   readonly target: ResolvedTarget;
   readonly provider: Provider;
-  readonly graders: Partial<Record<string, Grader>> & { readonly llm_judge: Grader };
+  readonly evaluatorRegistry: Partial<Record<string, Evaluator>> & { readonly llm_judge: Evaluator };
   readonly attempt: number;
   readonly promptInputs: { readonly request: string; readonly guidelines: string; readonly systemMessage?: string };
   readonly now: Date;
   readonly judgeProvider?: Provider;
-}): Promise<GradeResult> {
-  const { config, evalCase, candidate, target, provider, graders, attempt, promptInputs, now, judgeProvider } =
+}): Promise<EvaluationScore> {
+  const { config, evalCase, candidate, target, provider, evaluatorRegistry, attempt, promptInputs, now, judgeProvider } =
     options;
   const customPrompt = await resolveCustomPrompt(config);
 
-  return graders.llm_judge.grade({
+  return evaluatorRegistry.llm_judge.evaluate({
     evalCase,
     candidate,
     target,
@@ -776,68 +782,6 @@ async function runLlmJudgeEvaluator(options: {
   });
 }
 
-async function runCodeEvaluator(options: {
-  readonly config: Extract<NonNullable<EvalCase["evaluators"]>[number], { type: "code" }>;
-  readonly evalCase: EvalCase;
-  readonly candidate: string;
-  readonly promptInputs: { readonly request: string; readonly guidelines: string; readonly systemMessage?: string };
-  readonly agentTimeoutMs?: number;
-}): Promise<GradeResult> {
-  const { config, evalCase, candidate, promptInputs, agentTimeoutMs } = options;
-  const scriptCommand = config.script;
-  const cwd = config.resolvedCwd ?? config.cwd;
-
-  const inputPayload = JSON.stringify(
-    {
-      task: evalCase.task,
-      outcome: evalCase.outcome,
-      expected: evalCase.expected_assistant_raw,
-      output: candidate,
-      system_message: promptInputs.systemMessage ?? "",
-      guideline_paths: evalCase.guideline_paths,
-      attachments: evalCase.file_paths,
-      user_segments: evalCase.user_segments,
-    },
-    null,
-    2,
-  );
-
-  try {
-    const stdout = await executeScript(scriptCommand, inputPayload, agentTimeoutMs, cwd);
-    const parsed = parseJsonSafe(stdout);
-    const score = clampScore(typeof parsed?.score === "number" ? parsed.score : 0);
-    const hits = Array.isArray(parsed?.hits) ? parsed.hits.filter(isNonEmptyString) : [];
-    const misses = Array.isArray(parsed?.misses) ? parsed.misses.filter(isNonEmptyString) : [];
-    const reasoning = typeof parsed?.reasoning === "string" ? parsed.reasoning : undefined;
-
-    return {
-      score,
-      hits,
-      misses,
-      expectedAspectCount: hits.length + misses.length || 1,
-      reasoning,
-      graderRawRequest: {
-        script: scriptCommand,
-        ...(cwd ? { cwd } : {}),
-      },
-    };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return {
-      score: 0,
-      hits: [],
-      misses: [`Code evaluator '${config.name}' failed: ${message}`],
-      expectedAspectCount: 1,
-      reasoning: message,
-      graderRawRequest: {
-        script: scriptCommand,
-        ...(cwd ? { cwd } : {}),
-        error: message,
-      },
-    };
-  }
-}
-
 async function resolveCustomPrompt(config: { readonly prompt?: string; readonly promptPath?: string }): Promise<string | undefined> {
   if (config.promptPath) {
     try {
@@ -848,77 +792,6 @@ async function resolveCustomPrompt(config: { readonly prompt?: string; readonly 
     }
   }
   return config.prompt;
-}
-
-async function executeScript(
-  scriptPath: string,
-  input: string,
-  agentTimeoutMs?: number,
-  cwd?: string,
-): Promise<string> {
-  return await new Promise<string>((resolve, reject) => {
-    const child = spawn(scriptPath, {
-      shell: true,
-      cwd,
-    });
-
-    let stdout = "";
-    let stderr = "";
-
-    const timeout = agentTimeoutMs
-      ? setTimeout(() => {
-          child.kill();
-          reject(new Error(`Code evaluator timed out after ${agentTimeoutMs}ms`));
-        }, agentTimeoutMs)
-      : undefined;
-
-    child.stdout?.on("data", (data) => {
-      stdout += data.toString();
-    });
-    child.stderr?.on("data", (data) => {
-      stderr += data.toString();
-    });
-    child.on("error", (error) => {
-      if (timeout !== undefined) {
-        clearTimeout(timeout);
-      }
-      reject(error);
-    });
-    child.on("exit", (code) => {
-      if (timeout !== undefined) {
-        clearTimeout(timeout);
-      }
-      if (code && code !== 0 && stderr.length > 0) {
-        reject(new Error(`Code evaluator exited with code ${code}: ${stderr.trim()}`));
-        return;
-      }
-      resolve(stdout.trim());
-    });
-
-    child.stdin?.write(input);
-    child.stdin?.end();
-  });
-}
-
-function parseJsonSafe(payload: string): Record<string, unknown> | undefined {
-  try {
-    return JSON.parse(payload) as Record<string, unknown>;
-  } catch {
-    return undefined;
-  }
-}
-
-function clampScore(value: number): number {
-  if (Number.isNaN(value) || !Number.isFinite(value)) {
-    return 0;
-  }
-  if (value < 0) {
-    return 0;
-  }
-  if (value > 1) {
-    return 1;
-  }
-  return value;
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -932,13 +805,13 @@ function filterEvalCases(evalCases: readonly EvalCase[], evalId?: string): reado
   return evalCases.filter((evalCase) => evalCase.id === evalId);
 }
 
-function buildGraderRegistry(
-  overrides: Partial<Record<string, Grader>> | undefined,
+function buildEvaluatorRegistry(
+  overrides: Partial<Record<string, Evaluator>> | undefined,
   resolveJudgeProvider: (target: ResolvedTarget) => Promise<Provider | undefined>,
-): Partial<Record<string, Grader>> & { readonly llm_judge: Grader } {
+): Partial<Record<string, Evaluator>> & { readonly llm_judge: Evaluator } {
   const llmJudge =
     overrides?.llm_judge ??
-    new QualityGrader({
+    new LlmJudgeEvaluator({
       resolveJudgeProvider: async (context) => {
         if (context.judgeProvider) {
           return context.judgeProvider;
@@ -992,7 +865,7 @@ async function invokeProvider(
     readonly signal?: AbortSignal;
   },
 ): Promise<ProviderResponse> {
-  const { evalCase: evalCase, target, promptInputs, attempt, agentTimeoutMs, signal } = options;
+  const { evalCase, promptInputs, attempt, agentTimeoutMs, signal } = options;
 
   const controller = new AbortController();
   const timeout = agentTimeoutMs

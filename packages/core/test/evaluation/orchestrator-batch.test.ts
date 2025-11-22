@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { Evaluator } from "../../src/evaluation/evaluators.js";
 import { runEvaluation } from "../../src/evaluation/orchestrator.js";
-import type { Provider, ProviderRequest, ProviderResponse } from "../../src/evaluation/providers/types.js";
 import type { ResolvedTarget } from "../../src/evaluation/providers/targets.js";
-import type { Grader } from "../../src/evaluation/grading.js";
+import type { Provider, ProviderRequest, ProviderResponse } from "../../src/evaluation/providers/types.js";
 import type { EvalCase } from "../../src/evaluation/types.js";
 import * as yamlParser from "../../src/evaluation/yaml-parser.js";
 
@@ -33,9 +33,9 @@ class StubBatchProvider implements Provider {
   }
 }
 
-const stubGrader: Grader = {
+const stubEvaluator: Evaluator = {
   kind: "llm_judge",
-  async grade(context) {
+  async evaluate(context) {
     return {
       score: 1,
       hits: [`hit-${context.candidate}`],
@@ -45,39 +45,37 @@ const stubGrader: Grader = {
   },
 };
 
+const target: ResolvedTarget = {
+  kind: "mock",
+  name: "stub-target",
+  providerBatching: true,
+  config: {},
+};
+
 const evalCases: EvalCase[] = [
   {
     id: "one",
     task: "t1",
     user_segments: [],
     expected_assistant_raw: "",
-  guideline_paths: [],
-  file_paths: [],
-  code_snippets: [],
-  outcome: "",
-  grader: "llm_judge",
-},
-{
-  id: "two",
+    guideline_paths: [],
+    file_paths: [],
+    code_snippets: [],
+    outcome: "",
+    evaluator: "llm_judge",
+  },
+  {
+    id: "two",
     task: "t2",
     user_segments: [],
     expected_assistant_raw: "",
-  guideline_paths: [],
-  file_paths: [],
-  code_snippets: [],
-  outcome: "",
-  grader: "llm_judge",
-},
+    guideline_paths: [],
+    file_paths: [],
+    code_snippets: [],
+    outcome: "",
+    evaluator: "llm_judge",
+  },
 ];
-
-const target: ResolvedTarget = {
-  kind: "mock",
-  name: "batch-mock",
-  judgeTarget: undefined,
-  workers: 1,
-  providerBatching: true,
-  config: {},
-};
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -102,7 +100,7 @@ describe("runEvaluation provider batching", () => {
       repoRoot: ".",
       target,
       env: {},
-      graders: { llm_judge: stubGrader },
+      evaluators: { llm_judge: stubEvaluator },
       providerFactory: () => provider,
       maxRetries: 0,
     });
@@ -121,7 +119,7 @@ describe("runEvaluation provider batching", () => {
       repoRoot: ".",
       target,
       env: {},
-      graders: { llm_judge: stubGrader },
+      evaluators: { llm_judge: stubEvaluator },
       providerFactory: () => provider,
       maxRetries: 0,
     });
