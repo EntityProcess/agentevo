@@ -28,6 +28,15 @@ export interface GeminiResolvedConfig {
   readonly maxOutputTokens?: number;
 }
 
+export interface CodexResolvedConfig {
+  readonly executable: string;
+  readonly profile?: string;
+  readonly model?: string;
+  readonly approvalPreset?: string;
+  readonly cwd?: string;
+  readonly timeoutMs?: number;
+}
+
 export interface MockResolvedConfig {
   readonly response?: string;
   readonly delayMs?: number;
@@ -89,6 +98,14 @@ export type ResolvedTarget =
       readonly workers?: number;
       readonly providerBatching?: boolean;
       readonly config: GeminiResolvedConfig;
+    }
+  | {
+      readonly kind: "codex";
+      readonly name: string;
+      readonly judgeTarget?: string;
+      readonly workers?: number;
+      readonly providerBatching?: boolean;
+      readonly config: CodexResolvedConfig;
     }
   | {
       readonly kind: "mock";
@@ -179,6 +196,16 @@ export function resolveTargetDefinition(
         workers: parsed.workers,
         providerBatching,
         config: resolveGeminiConfig(parsed, env),
+      };
+    case "codex":
+    case "codex-cli":
+      return {
+        kind: "codex",
+        name: parsed.name,
+        judgeTarget: parsed.judge_target,
+        workers: parsed.workers,
+        providerBatching,
+        config: resolveCodexConfig(parsed, env),
       };
     case "mock":
       return {
@@ -295,6 +322,58 @@ function resolveGeminiConfig(
   };
 }
 
+function resolveCodexConfig(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  env: EnvLookup,
+): CodexResolvedConfig {
+  const settings = target.settings ?? {};
+  const executableSource = settings.executable ?? settings.command ?? settings.binary;
+  const profileSource = settings.profile;
+  const modelSource = settings.model;
+  const approvalSource = settings.approval_preset ?? settings.approvalPreset;
+  const cwdSource = settings.cwd;
+  const timeoutSource = settings.timeout_seconds ?? settings.timeoutSeconds;
+
+  const executable =
+    resolveOptionalString(executableSource, env, `${target.name} codex executable`, {
+      allowLiteral: true,
+      optionalEnv: true,
+    }) ?? "codex";
+
+  const profile = resolveOptionalString(profileSource, env, `${target.name} codex profile`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+  const model = resolveOptionalString(modelSource, env, `${target.name} codex model`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+  const approvalPreset = resolveOptionalString(
+    approvalSource,
+    env,
+    `${target.name} codex approval preset`,
+    {
+      allowLiteral: true,
+      optionalEnv: true,
+    },
+  );
+
+  const cwd = resolveOptionalString(cwdSource, env, `${target.name} codex cwd`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+  const timeoutMs = resolveTimeoutMs(timeoutSource, `${target.name} codex timeout`);
+
+  return {
+    executable,
+    profile,
+    model,
+    approvalPreset,
+    cwd,
+    timeoutMs,
+  };
+}
+
 function resolveMockConfig(target: z.infer<typeof BASE_TARGET_SCHEMA>): MockResolvedConfig {
   const settings = target.settings ?? {};
   const response = typeof settings.response === "string" ? settings.response : undefined;
@@ -341,7 +420,12 @@ function resolveCliConfig(
 ): CliResolvedConfig {
   const settings = target.settings ?? {};
   const commandTemplateSource = settings.command_template ?? settings.commandTemplate;
-  const filesFormat = resolveOptionalLiteralString(settings.files_format ?? settings.filesFormat);
+  const filesFormat = resolveOptionalLiteralString(
+    settings.files_format ??
+      settings.filesFormat ??
+      settings.attachments_format ??
+      settings.attachmentsFormat,
+  );
   const cwd = resolveOptionalString(settings.cwd, env, `${target.name} working directory`, {
     allowLiteral: true,
     optionalEnv: true,

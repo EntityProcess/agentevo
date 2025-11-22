@@ -1,6 +1,6 @@
 # AgentV
 
-A TypeScript-based AI agent evaluation and optimization framework using YAML specifications to score task completion. Built for modern development workflows with first-class support for VS Code Copilot, Azure OpenAI, Anthropic, and Google Gemini.
+A TypeScript-based AI agent evaluation and optimization framework using YAML specifications to score task completion. Built for modern development workflows with first-class support for VS Code Copilot, OpenAI Codex CLI and Azure OpenAI.
 
 ## Installation and Setup
 
@@ -195,6 +195,7 @@ Environment keys (configured via targets.yaml):
 - **Google Gemini:** Set environment variables specified in your target's `settings.api_key` and optional `settings.model`
 - **VS Code:** Set environment variable specified in your target's `settings.workspace_env` → `.code-workspace` path
 - **CLI provider:** Configure `command_template` plus optional `cwd`, `env`, `timeout_seconds`, and `healthcheck` fields in targets.yaml; CLI `settings.env` entries are merged into the process environment
+- **Codex CLI:** Install the `codex` CLI, run `codex configure` to create `~/.codex/config`, and export either `OPENAI_API_KEY` or `CODEX_API_KEY`. Optional `CODEX_CONFIG_PATH` lets you point to a different config file.
 
 ## Targets and Environment Variables
 
@@ -205,7 +206,7 @@ Execution targets in `.agentv/targets.yaml` decouple evals from providers/settin
 Each target specifies:
 
 - `name`: Unique identifier for the target
-- `provider`: The model provider (`azure`, `anthropic`, `gemini`, `vscode`, `vscode-insiders`, `cli`, or `mock`)
+- `provider`: The model provider (`azure`, `anthropic`, `gemini`, `codex`, `vscode`, `vscode-insiders`, `cli`, or `mock`)
 - `settings`: Environment variable names to use for this target
 
 ### Examples
@@ -274,6 +275,23 @@ Each target specifies:
 
 CLI placeholders are `{PROMPT}`, `{GUIDELINES}`, `{EVAL_ID}`, `{ATTEMPT}`, and `{FILES}`. Values are shell-escaped automatically; avoid wrapping them in extra quotes unless your CLI requires nested quoting. `{FILES}` renders each file path using `files_format` (supports `{path}` and `{basename}`) and joins with spaces. Optional `healthcheck` probes (HTTP or command) run once before the first eval and abort the run on failure.
 CLI troubleshooting: unsupported placeholders fail validation, so stick to the tokens above; if your CLI logs show doubled quotes, drop extra quoting in `command_template` and rely on the built-in escaping; if healthchecks fail, raise `timeout_seconds` or point the probe at a fast status endpoint.
+
+**Codex CLI targets:**
+
+```yaml
+- name: codex_cli
+  provider: codex
+  settings:
+    executable: "CODEX_CLI_PATH"     # defaults to `codex` if omitted
+    profile: "CODEX_PROFILE"         # matches the profile in ~/.codex/config
+    model: "CODEX_MODEL"             # optional, falls back to profile default
+    approval_preset: "CODEX_APPROVAL_PRESET"
+    timeout_seconds: 180
+    cwd: CODEX_WORKSPACE_DIR
+```
+
+Codex targets require the standalone `codex` CLI plus either `OPENAI_API_KEY` or `CODEX_API_KEY`. Run `codex configure` once so the CLI creates `~/.codex/config`, then point AgentV at the same profile via `settings.profile`. AgentV mirrors all guideline and attachment files into a fresh scratch workspace, so the `file://` preread links remain valid even when the CLI runs outside your repo tree.
+Confirm the CLI works by running `codex --quiet --json --profile <name> "ping"` (or any supported dry run) before starting an eval.
 
 ## Timeout Handling and Retries
 

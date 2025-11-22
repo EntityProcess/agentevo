@@ -280,7 +280,63 @@ describe("resolveTargetDefinition", () => {
     expect(target.config.cwd).toBe("/tmp/project");
     expect(target.config.env?.API_TOKEN).toBe("secret-token");
     expect(target.config.timeoutMs).toBe(3000);
-    expect(target.config.attachmentsFormat).toBe("--file {path}");
+    expect(target.config.filesFormat).toBe("--file {path}");
+  });
+
+  it("resolves codex settings with overrides", () => {
+    const env = {
+      CODEX_PROFILE_ENV: "review",
+      CODEX_EXEC: "/usr/local/bin/codex",
+    } satisfies Record<string, string>;
+
+    const target = resolveTargetDefinition(
+      {
+        name: "codex-cli",
+        provider: "codex",
+        settings: {
+          executable: "CODEX_EXEC",
+          profile: "CODEX_PROFILE_ENV",
+          model: "gpt-4o-preview",
+          approval_preset: "auto",
+          timeout_seconds: 45,
+          cwd: "/tmp/codex",
+        },
+      },
+      env,
+    );
+
+    expect(target.kind).toBe("codex");
+    if (target.kind !== "codex") {
+      throw new Error("expected codex target");
+    }
+
+    expect(target.config).toMatchObject({
+      executable: "/usr/local/bin/codex",
+      profile: "review",
+      model: "gpt-4o-preview",
+      approvalPreset: "auto",
+      timeoutMs: 45000,
+      cwd: "/tmp/codex",
+    });
+  });
+
+  it("supports codex-cli alias with defaults", () => {
+    const target = resolveTargetDefinition(
+      {
+        name: "codex-default",
+        provider: "codex-cli",
+      },
+      {},
+    );
+
+    expect(target.kind).toBe("codex");
+    if (target.kind !== "codex") {
+      throw new Error("expected codex target");
+    }
+
+    expect(target.config.executable).toBe("codex");
+    expect(target.config.timeoutMs).toBeUndefined();
+    expect(target.config.profile).toBeUndefined();
   });
 
   it("throws for unknown cli placeholders", () => {
