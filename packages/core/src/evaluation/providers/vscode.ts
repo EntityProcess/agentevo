@@ -31,7 +31,7 @@ export class VSCodeProvider implements Provider {
     }
 
     const inputFiles = normalizeAttachments(request.inputFiles);
-    const promptContent = buildPromptDocument(request, inputFiles, request.guidelinePatterns);
+    const promptContent = buildPromptDocument(request, inputFiles, request.guideline_patterns);
 
     const session = await dispatchAgentSession({
       userQuery: promptContent,
@@ -84,7 +84,7 @@ export class VSCodeProvider implements Provider {
       normalizedRequests.map(({ inputFiles }) => inputFiles),
     );
     const userQueries = normalizedRequests.map(({ request, inputFiles }) =>
-      buildPromptDocument(request, inputFiles, request.guidelinePatterns),
+      buildPromptDocument(request, inputFiles, request.guideline_patterns),
     );
 
     const session = await dispatchBatchAgent({
