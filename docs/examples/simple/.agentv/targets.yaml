@@ -51,7 +51,7 @@ targets:
       attachments_format: --file "{path}"
       files_format: --file "{path}"
       # Optional working directory and env overrides resolved from .env
-      cwd: PROJECT_ROOT
+      cwd: CLI_EVALS_DIR
       env:
         API_TOKEN: LOCAL_AGENT_TOKEN
       timeout_seconds: 30

@@ -41,9 +41,9 @@ evalcases:
           # File references are resolved relative to the eval file directory
           # Files ending in .instructions.md are treated as guidelines
           - type: file
-            value: ../prompts/javascript.instructions.md
+            value: ../../prompts/javascript.instructions.md
           - type: file
-            value: ./attachments/example.txt
+            value: ../cli-target/attachments/example.txt
     
     expected_messages:
       - role: assistant
@@ -100,7 +100,7 @@ evalcases:
               4. Raises appropriate exceptions for invalid input
           # Reference to real instruction file
           - type: file
-            value: ../prompts/python.instructions.md
+            value: ../../prompts/python.instructions.md
     
     expected_messages:
       - role: assistant

@@ -9,7 +9,6 @@ target: local_cli
 evalcases:
   - id: cli-provider-echo
     outcome: CLI echoes the prompt and mentions all attachment names
-    grader: llm_judge
 
     input_messages:
       - role: user
@@ -18,7 +17,7 @@ evalcases:
             value: |-
               Please echo this request in one short sentence and mention all attached files by name.
           - type: file
-            value: ../prompts/python.instructions.md
+            value: ../../prompts/python.instructions.md
           - type: file
             value: ./attachments/example.txt
 
